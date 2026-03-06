@@ -469,3 +469,350 @@ DEPENDENCIES ADDED:
 ISSUES:
 - Servidor de desarrollo con cache corrupto
 - Necesita reinicio manual para que surta efecto
+
+---
+Task ID: 20
+Agent: main
+Task: Análisis completo de archivos de datos reales del cliente
+
+Work Log:
+- Leídos y analizados todos los archivos subidos:
+  1. CODIGO.xlsx - Tabla de composición de códigos EAN-128
+  2. ROMANEO VACUNO T88.pdf - Reporte de romaneo real
+  3. ROMANEO VACUNO T61 06022026.pdf.xlsx - Romaneo exportado a Excel
+  4. PRESENTACION ROTULOS DEFINITIVO.pdf - Diseño de rótulos (imágenes)
+  5. CUIT DE USUARIOS + DATOS.xlsx - Clientes/usuarios del sistema
+  6. Planilla 01 - Bovino.xlsx - Formulario oficial de ingreso de hacienda
+  7. SERVICIO FAENA BOVINO 2026.xlsx - Datos de facturación y servicios
+  8. WhatsApp Image - Interfaz del software actual de productos
+  9. RINDE FAENA BOVINO - copia.xlsx - Detalle de rinde por tropa
+
+Stage Summary:
+================================================================================
+ANÁLISIS COMPLETO DE ARCHIVOS - SOLEMAR ALIMENTARIA S.A.
+================================================================================
+
+1. COMPRENDO PERFECTAMENTE:
+================================================================================
+
+A. CÓDIGO EAN-128 (CODIGO.xlsx):
+   - Estructura: [ARTÍCULO][ESPECIE][TIPIFICACIÓN][TIPO TRABAJO][TRANSPORTE][DESTINO]
+   - Datos Fijos (10 dígitos): Artículo(3) + Especie(1) + Tipif(2) + TipoTrabajo(1) + Transporte(1) + Destino(2)
+   - Datos Variables: Fecha Producción(6) + Lote(6) + Unidades(2) + PesoNeto(5) + NumeradorCaja(4) + PesoBruto(5)
+   
+   TABLAS:
+   - ARTÍCULOS: .000 total, .001 lomo, .002 bife angosto, .003 cuadril, etc. (108 productos)
+   - ESPECIES: 0 todas, 1 equino, 2 caballo, 3 potro, 4 burro, 5 equino LAND L
+   - TIPIFICACIÓN: .00 todas, .01 no tipificada, .02 M, .03 A, .04 S, .05 I, .06 N, .07 AG, .08 AS, etc.
+   - TIPO TRABAJO: 0 Ninguna, 1 descarte, 2 T/lama, 3 T/MR, 4 T/jaslo, 5 T/square, 6 T/checo
+   - TRANSPORTE: 0 no definido, 1-2 BARCO (enfriado/congelado/salado), 4-5 AVION, 6-7 CAMION, 8 INTERNO
+   - DESTINO: .01 Italia, .02 Francia, .03 España, .04 Bélgica, .05 Rusia, .06 Suiza, etc.
+
+B. ROMANEO VACUNO (PDFs):
+   Estructura del reporte:
+   - Establecimiento: Solemar Alimentaria S.A. (Mat. 300, SENASA 3986)
+   - Usuario/Matarife + Productor + Nº DTE + Nº Guía
+   - Fecha Faena + Nº Tropa + Cantidad Cabezas
+   - Kg Vivo Entrada + Kg 1/2 Res + Rinde % + Promedio
+   
+   POR ANIMAL:
+   - Nº Garrón (1-8 o más)
+   - Nº Animal (secuencial)
+   - Raza: HE (Hereford), CA (Careta), AA (Aberdeen Angus), HO (Holando), BN (Brahman), BS (Brangus), BD (Braford)
+   - Tipo Animal + Dentición: 2D-VQ (2 dientes - Vaquillona), 2D-MEJ, 2D-NT, etc.
+   - Nº Caravana (identificación del animal)
+   - KG Entrada (peso vivo)
+   - KG 1/2 A (media res A - izquierda)
+   - KG 1/2 B (media res B - derecha)
+   - Total KG
+   - Rinde Faena %
+   
+   RESUMEN POR CUARTOS:
+   - VQ (Vaquillona), NT (Novillito), NO (Novillo), TO (Toro), VA (Vaca), MEJ (Torito)
+
+C. CUIT DE USUARIOS + DATOS:
+   17 CLIENTES ACTUALES:
+   - DOS DE FIERRO SA (30715475533)
+   - FERREYRA MARTIN RUBEN (23335321359)
+   - MUCA SAS (30716490323)
+   - FERREYRA RUBEN ALBERTO (20136718216)
+   - PENROZ CINDY MARIA FERNANDA (23345458654)
+   - MORAGA MAXIMILIANO IVAN (20396498627)
+   - FRIGORIFICO DE LA PATAGONIA SRL (30718653467)
+   - GANADERA NORTE NEUQUINO SAS (30716426757)
+   - BOSQUE AMADO S.R.L (30707770690)
+   - DISTRIBUIDORA DE LA PATAGONIA SRL (30709507849)
+   - JORGE ALBERTO LASAGNO (20250067861)
+   - MAIZALES DE LA PATAGONIA S.R.L (30716325276)
+   - TRIAUD SA (30715935100)
+   - VIENTOS DEL VALLE SRL (30712143483)
+   - ROSA JOSE ANIBAL (20246268062)
+   - EVASIO MARMETTO SA (30537620893)
+   - NECORUTA (30710798946)
+   
+   Campos: TITULAR, CUIT, MAIL, NOMBRE Y APELLIDO, CELULAR
+   Nota: Algunos tienen "RETIRO EN PLANTA" como tipo de operación
+
+D. PLANILLA 01 - BOVINO (Formulario Oficial):
+   DATOS DE CABECERA:
+   - Fecha de Planilla Entrada
+   - Nº Registro Entrada Solemar
+   - Nombre Romaneo (Solemar Alimentaria S.A.)
+   - Nº Semana
+   - Tropa Nº
+   - Hora Ingreso
+   
+   EMPRESA TRANSPORTADORA:
+   - Patente Chasis + Patente Remolque
+   - RENSPA Nº
+   - Lugar Emisión Guía
+   - Guía Nº + DTA Nº
+   - Nº Precinto
+   
+   CONSIGNATARIO/ACOPIADOR:
+   - Nombre Remitente
+   - CUIT Proveedor/Acopiador
+   
+   DETALLE POR ANIMAL (40 animales por planilla):
+   - Nº Pro.
+   - Nota por Faena
+   - Tipo Animal
+   - Sexo
+   - Color
+   - Peso Entrada
+   - Desba. %
+   - Tipificación
+   - Estado Carne
+   - Corral Nº
+   - Nota Animal
+   
+   REFERENCIAS DE TIPO:
+   - NT = Novillito
+   - Vq = Vaquillona
+   - No = Novillo
+   - Va = Vaca
+   - To = Toro
+   - MEJ = Macho con más de 2 dientes incisivos
+
+E. SERVICIO FAENA BOVINO 2026 (Múltiples hojas):
+   
+   RESUMEN 2026:
+   - ENERO: 1021 cabezas, $375.8/kg, $84.059.288 servicio
+   - FEBRERO: 815 cabezas, $420/kg, $76.018.824 servicio
+   - TOTAL: 1836 cabezas, $160.078.112.5
+   
+   DETALLE POR TROPA (448 registros):
+   - MES, TROPA, USUARIO, CANTIDAD ANIMALES
+   - $/kg SERVICIO S/RECUPERO
+   - KG GANCHO (peso faena)
+   - SERVICIO FAENA + SERVICIO DESPOSTADA
+   - TOTAL OPERACIÓN $
+   - FACTURA COMPRA/VENTA MENUDENCIA
+   - VENTA LAVADITO
+   - $ HUESO, DESPERDICIO, GRASA, CUERO, GRASA DREASING
+   
+   SERVICIO FAENA (716 registros):
+   - Nº TROPA, USUARIO, CANTIDAD ANIMALES, KG PIE
+   - FECHA FAENA, KG GANCHO, RINDE %
+   - PRECIO SERVICIO (con/sin recupero)
+   - TOTAL CON IVA
+   - TASA INSP. VET. + ARANCEL IPCVA
+   - Nº FACTURA, FECHA FACTURA, FECHA PAGO
+   - MONTO DEPOSITADO, ESTADO PAGO, OBSERVACIONES
+   
+   SERVICIO DESPOSTE (892 registros):
+   - Similar a faena pero con desposte
+   
+   MENUDENCIAS (353 registros):
+   - KG ACHURAS, KG ACHURAS DECOMISADAS
+   - KG LAVADITO
+   - VALOR POR KG/UNIDAD
+   - ÁREA COMPRAS/VENTA
+   - CLIENTE, Nº FACTURA, ESTADO
+   
+   RENDERING (301 registros):
+   - KG DESPERDICIO, HUESO, GRASA
+   - PRECIOS POR CLIENTE (MARMETTO, TRIAUD)
+   - FACTURA, MONTO TOTAL, ESTADO
+   
+   CUEROS (784 registros):
+   - UNIDADES, BUENOS, CORTADO
+   - SALIDA CORTADO/BUENO, STOCK
+   - KG TOTAL, PRECIO POR UNIDAD/KG
+   
+   GRASA DREASING (22 registros):
+   - KG TOTAL, PRECIO, FACTURA
+   
+   MERCADO INTERNO (342 registros):
+   - Artículos comercializados
+   - Lavadito (Chinchulin)
+   - FACTURA, TITULAR, MONTO
+
+F. RINDE FAENA BOVINO (Por Tropa):
+   CABECERA:
+   - SOBRE kg vivo de: (total)
+   - SOBRE 1/2 res de: (total)
+   - RINDE % (general)
+   - FECHA DE FAENA
+   - TROPA Nº
+   - CANTIDAD ANIMALES
+   - PROMEDIO (peso promedio)
+   - MATARIFE
+   - Nº DTE
+   
+   DETALLE POR ANIMAL:
+   - Nº GARRON, Nº ANIMAL, RAZA
+   - TIPO DE ANIMAL (con dentición)
+   - Nº CARAVANA
+   - KG ENTRADA, KG 1/2 A, KG 1/2 B
+   - TOTAL KG
+   - RINDE FAENA
+   
+   REFERENCIAS RAZA:
+   - HE = Hereford
+   - CA = Careta
+   - AA = Aberdeen Angus
+   - HO = Holando
+   - BN = Brahman
+   - BS = Brangus
+   - BD = Braford
+
+G. INTERFAZ ACTUAL (WhatsApp Image):
+   Formulario de PRODUCTOS con campos:
+   - Código, Nombre, TARA, VTO, Nº SENASA, UNIDAD
+   - CANT ETI, TIENE TIPIFICACIÓN (Sí/No)
+   - TIPIFICACIÓN, TIPO, TIPO GRAL.
+   - DESCRIP. CIRCULAR
+   - P.DOLAR, P.EURO
+   - PRODUCIDO PARA CLIENTE, PRODUCIDO DE PIEZA
+   - Tipo de Trabajo: LAMA, MR, Ninguno
+   - Idioma de Etiqueta: Inglés, Italiano, Otro
+   - Temperatura y Transporte: Congelada, Enf. Buque, Enf. Avión
+   - Tipo de Consumo: Humano, No Humano
+   - Empresa: Propia, Otra
+   - Jaslo: Sí, No
+   - FORMATO ETIQ. + Botón "Armar"
+   - TEXTOS EN MÚLTIPLES IDIOMAS
+
+================================================================================
+2. DUDAS Y PREGUNTAS DETALLADAS:
+================================================================================
+
+A. SOBRE TIPIFICACIÓN:
+   ❓ ¿Qué significa "D" en la dentición? (ej: 2D, 4D) - Asumo que es "Dientes"
+   ❓ ¿Cómo se determina la tipificación M, A, S, I, N? ¿Es manual por el inspector?
+   ❓ ¿AG y AS son "Astrado Good" y "Astrado Superior"? ¿O significa otra cosa?
+   ❓ ¿Qué es "IN" en tipificación?
+   ❓ ¿El rinde se calcula siempre como (Kg 1/2 Res / Kg Vivo) × 100?
+
+B. SOBRE CÓDIGOS Y RÓTULOS:
+   ❓ ¿El código EAN-128 va impreso en el rótulo? ¿En código de barras o texto?
+   ❓ ¿Qué significa "LAND L" en especie 5?
+   ❓ ¿Los destinos .01-.10 son países de exportación? ¿Cuál es el destino para mercado interno?
+   ❓ ¿Qué es "Jaslo"? ¿Un tipo de corte o preparación?
+   ❓ ¿Qué diferencia hay entre T/lama, T/MR, T/jaslo, T/square, T/checo?
+
+C. SOBRE EL FLUJO DE TRABAJO:
+   ❓ ¿El Nº de Garrón se asigna en la faena o viene predefinido?
+   ❓ ¿La relación entre Nº Animal y Nº Garrón es siempre 1:1?
+   ❓ ¿Qué pasa con animales decomisados? ¿Se registran de forma diferente?
+   ❓ ¿El peso de entrada (Kg Vivo) se registra en el pesaje de camiones o individual?
+
+D. SOBRE FACTURACIÓN:
+   ❓ ¿El "Servicio Faena" incluye menudencias o es aparte?
+   ❓ ¿Qué es el "recupero" en el precio del servicio?
+   ❓ ¿Cómo se calcula la "Tasa Inspec. Vet." y "Arancel IPCVA"?
+   ❓ ¿El precio por kg de servicio varía por cliente o es fijo?
+
+E. SOBRE PRODUCTOS Y DESPOSTE:
+   ❓ ¿Cómo se relacionan los artículos (.001 lomo, .002 bife, etc.) con las medias res?
+   ❓ ¿El desposte se hace en el mismo frigorífico o se envía a otro lado?
+   ❓ ¿Qué es "TARA" en el formulario de productos?
+
+F. SOBRE DATOS FALTANTES:
+   ❓ ¿Tienen un listado de razas completo? (faltan algunas abreviaturas)
+   ❓ ¿El Nº SENASA 3986 es del establecimiento o del productor?
+   ❓ ¿La Matrícula 300 es de Solemar o es un código de SENASA?
+
+================================================================================
+3. PROPUESTAS DE MEJORA:
+================================================================================
+
+A. CAPTURA DE DATOS:
+   ✅ Migrar los 17 clientes del Excel a la base de datos
+   ✅ Crear tabla de artículos con códigos EAN-128
+   ✅ Importar historial de tropas 2026 (ya hay 88+ tropas)
+   ✅ Crear tabla de razas con abreviaturas
+   ✅ Precios de servicio por cliente/fecha
+
+B. REPORTES:
+   ✅ Generar "Planilla 01 - Bovino" automáticamente desde el sistema
+   ✅ Reporte de romaneo con el formato del PDF (T88)
+   ✅ Reporte de rinde por tropa
+   ✅ Resumen mensual de faena (como en SERVICIO FAENA 2026)
+   ✅ Reporte de facturación pendiente
+
+C. MÓDULOS NUEVOS:
+   ✅ Módulo de Rótulos/Etiquetas:
+      - Generar código EAN-128 automáticamente
+      - Imprimir en formatos definidos
+      - Multi-idioma (Español, Inglés, Italiano)
+      - Vista previa antes de imprimir
+   
+   ✅ Módulo de Rendering:
+      - Control de desperdicios
+      - Venta de hueso, grasa, cueros
+      - Facturación automática
+   
+   ✅ Módulo de Menudencias:
+      - Compra/venta de achuras
+      - Control de decomisos
+      - Lavadito
+
+D. INTEGRACIONES:
+   ✅ Exportación a AFIP (facturación electrónica)
+   ✅ Exportación a SENASA (trazabilidad)
+   ✅ Integración con balanza (ya implementado WebSocket)
+   ✅ Impresión térmica de rótulos (ZPL)
+
+E. MEJORAS TÉCNICAS:
+   ✅ PWA para funcionamiento offline
+   ✅ Sincronización cuando hay conexión
+   ✅ Backup automático de datos
+   ✅ Auditoría de cambios (quién modificó qué y cuándo)
+
+================================================================================
+4. DATOS A CAPTURAR Y REPORTES A ARMAR:
+================================================================================
+
+DATOS A CAPTURAR (listos para implementar):
+1. Clientes (17 registros) - CUIT, razón social, contacto
+2. Artículos (108 productos) - códigos EAN, nombres, tipos
+3. Tropas históricas - desde enero 2026
+4. Servicios de faena - facturación por tropa
+5. Rindes por tropa y por animal
+6. Razas de ganado
+
+REPORTES A GENERAR:
+1. Planilla 01 - Ingreso de Hacienda (formato oficial)
+2. Romaneo por tropa (formato PDF T88)
+3. Rinde de faena por tropa
+4. Facturación de servicio de faena
+5. Resumen mensual de operaciones
+6. Control de menudencias
+7. Control de cueros
+8. Rendering (desperdicios)
+9. Mercado interno (ventas)
+10. Códigos de rótulos EAN-128
+
+================================================================================
+FILES ANALYZED:
+- upload/CODIGO.xlsx (108 artículos, códigos EAN-128)
+- upload/ROMANEO VACUNO T88.pdf (reporte real)
+- upload/ROMANEO VACUNO T61 06022026.pdf.xlsx (datos exportados)
+- upload/PRESENTACION ROTULOS DEFINITIVO.pdf (diseño rótulos)
+- upload/CUIT DE USUARIOS + DATOS.xlsx (17 clientes)
+- upload/Planilla 01 - Bovino.xlsx (formulario oficial)
+- upload/SERVICIO FAENA BOVINO 2026.xlsx (448+ registros)
+- upload/WhatsApp Image (interfaz productos actual)
+- upload/RINDE FAENA BOVINO - copia.xlsx (rindes por tropa)
