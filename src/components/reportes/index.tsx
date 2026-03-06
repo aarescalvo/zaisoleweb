@@ -505,7 +505,7 @@ export function ReportesModule({ operador }: { operador: Operador }) {
                         ) : (
                           tropasPesadas.map(tropa => (
                             <SelectItem key={tropa.id} value={tropa.id}>
-                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || 'Sin productor'} ({tropa.cantidadCabezas} cab.)
+                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || tropa.usuarioFaena?.nombre || 'Sin cliente'} ({tropa.cantidadCabezas} cab.)
                             </SelectItem>
                           ))
                         )}
@@ -568,7 +568,7 @@ export function ReportesModule({ operador }: { operador: Operador }) {
                         ) : (
                           tropasFaenadas.map(tropa => (
                             <SelectItem key={tropa.id} value={tropa.id}>
-                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || 'Sin productor'} ({tropa.cantidadCabezas} cab.)
+                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || tropa.usuarioFaena?.nombre || 'Sin cliente'} ({tropa.cantidadCabezas} cab.)
                             </SelectItem>
                           ))
                         )}
@@ -675,7 +675,7 @@ export function ReportesModule({ operador }: { operador: Operador }) {
                         ) : (
                           tropasTodas.map(tropa => (
                             <SelectItem key={tropa.id} value={tropa.id}>
-                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || 'Sin productor'} ({tropa.cantidadCabezas} cab.) - {tropa.estado}
+                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || tropa.usuarioFaena?.nombre || 'Sin cliente'} ({tropa.cantidadCabezas} cab.) - {tropa.estado}
                             </SelectItem>
                           ))
                         )}
