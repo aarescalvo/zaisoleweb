@@ -816,3 +816,65 @@ FILES ANALYZED:
 - upload/SERVICIO FAENA BOVINO 2026.xlsx (448+ registros)
 - upload/WhatsApp Image (interfaz productos actual)
 - upload/RINDE FAENA BOVINO - copia.xlsx (rindes por tropa)
+
+---
+Task ID: 21
+Agent: main
+Task: Cargar datos reales del cliente - clientes, códigos EAN-128, artículos
+
+Work Log:
+- Creado script seed-datos-reales.ts con datos extraídos de los archivos Excel
+- Cargados 19 clientes reales del archivo CUIT DE USUARIOS + DATOS.xlsx
+- Cargados 42 artículos/cortes del archivo CODIGO.xlsx
+- Cargadas tablas de códigos EAN-128:
+  - 6 códigos de especie
+  - 9 códigos de transporte
+  - 12 códigos de destino
+  - 7 códigos de tipo trabajo
+  - 24 códigos de tipificación
+- Configuración del frigorífico: Matrícula 300, SENASA 3986
+
+Stage Summary:
+DATOS CARGADOS A LA BASE DE DATOS:
+
+CLIENTES (19 reales):
+- DOS DE FIERRO SA (30715475533)
+- FERREYRA MARTIN RUBEN (23335321359)
+- MUCA SAS (30716490323)
+- FRIGORIFICO DE LA PATAGONIA SRL (30718653467)
+- GANADERA NORTE NEUQUINO SAS (30716426757)
+- BOSQUE AMADO S.R.L (30707770690)
+- Y 13 más...
+
+ARTÍCULOS/CORTES (42):
+- 000: TOTAL
+- 001: Lomo
+- 002: Bife Angosto
+- 003: Cuadril
+- 004: Nalga de Adentro
+- ... hasta 041: Cuarto Trasero
+
+CÓDIGOS EAN-128:
+- Especie: 0=Todas, 1=Equino, 2=Caballo, etc.
+- Transporte: 0=No definido, 1=BARCO enfriado, etc.
+- Destino: .00=Cualquiera, .01=Italia, .02=Francia, .16=Mercado Interno
+- Tipo Trabajo: 0=Ninguna, 2=T/lama, 4=T/jaslo, etc.
+- Tipificación: .02=M, .03=A, .04=S, .07=AG, .08=AS, etc.
+
+ACLARACIONES RECIBIDAS:
+- "D" en dentición = Dientes (0D, 2D, 4D, 6D, 8D)
+- AG/AS = Tipificaciones específicas SOLO del equino
+- IN = Tipificación I+N combinada para equino
+- LAND L = Otro frigorífico, marca equinos de allí
+- Código 16 = Mercado Interno
+- Nº Garrón = Predefinido (1 a N) según lista de faena
+- Animales decomisados = Se registran con kg 0 o parcial
+- Recupero = Precio diferenciado del servicio
+
+FILES CREATED:
+- /prisma/seed-datos-reales.ts
+
+PENDIENTE:
+- Importar historial de tropas 2026 del Excel SERVICIO FAENA BOVINO 2026.xlsx
+- Generar reportes: Planilla 01, Romaneo PDF, Rinde por tropa
+- Módulo de Rótulos/Etiquetas con código de barras EAN-128
