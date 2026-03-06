@@ -19,12 +19,14 @@ import { MenudenciasModule } from '@/components/menudencias'
 import { IngresoCajonModule } from '@/components/ingreso-cajon'
 import { StockCamarasModule } from '@/components/stock-camaras'
 import { ReportesModule } from '@/components/reportes'
+import { CumplimientoRegulatorioModule } from '@/components/cumplimiento-regulatorio'
+import { FacturacionModule } from '@/components/facturacion'
 
 // Lucide icons
 import { 
   Truck, Beef, Scale, ClipboardList, TrendingUp, Package, Tag, Scissors, 
   Warehouse, FileText, Settings, Calendar, LogOut, Lock, Users,
-  Loader2, Plus, Search, Weight, RefreshCw, BoxSelect
+  Loader2, Plus, Search, Weight, RefreshCw, BoxSelect, FileCheck, Receipt
 } from 'lucide-react'
 
 // Types
@@ -44,6 +46,8 @@ interface Operador {
     puedeMenudencias: boolean
     puedeStock: boolean
     puedeReportes: boolean
+    puedeCCIR: boolean
+    puedeFacturacion: boolean
     puedeConfiguracion: boolean
   }
 }
@@ -72,7 +76,7 @@ interface Stats {
   enCamara: number
 }
 
-type Page = 'dashboard' | 'pesajeCamiones' | 'movimientoHacienda' | 'pesajeIndividual' | 'listaFaena' | 'romaneo' | 'ingresoCajon' | 'menudencias' | 'stock' | 'reportes' | 'configuracion'
+type Page = 'dashboard' | 'pesajeCamiones' | 'movimientoHacienda' | 'pesajeIndividual' | 'listaFaena' | 'romaneo' | 'ingresoCajon' | 'menudencias' | 'stock' | 'reportes' | 'ccir' | 'facturacion' | 'configuracion'
 
 const NAV_ITEMS = [
   { id: 'dashboard' as Page, label: 'Dashboard', icon: Beef },
@@ -85,6 +89,8 @@ const NAV_ITEMS = [
   { id: 'menudencias' as Page, label: 'Menudencias', icon: Package, permiso: 'puedeMenudencias' },
   { id: 'stock' as Page, label: 'Stock Cámaras', icon: Warehouse, permiso: 'puedeStock' },
   { id: 'reportes' as Page, label: 'Reportes', icon: FileText, permiso: 'puedeReportes' },
+  { id: 'ccir' as Page, label: 'CCIR / Decl. Jurada', icon: FileCheck, permiso: 'puedeCCIR' },
+  { id: 'facturacion' as Page, label: 'Facturación', icon: Receipt, permiso: 'puedeFacturacion' },
   { id: 'configuracion' as Page, label: 'Configuración', icon: Settings, permiso: 'puedeConfiguracion' },
 ]
 
@@ -108,7 +114,21 @@ export default function FrigorificoApp() {
     const savedOperador = localStorage.getItem('operador')
     if (savedOperador) {
       try {
-        setOperador(JSON.parse(savedOperador))
+        const parsed = JSON.parse(savedOperador)
+        // Verificar que tenga todos los permisos necesarios (para detectar sesiones antiguas)
+        const permisosNecesarios = [
+          'puedeCCIR', 'puedeFacturacion'
+        ]
+        const permisosFaltantes = permisosNecesarios.some(p => parsed.permisos?.[p] === undefined)
+        
+        if (permisosFaltantes) {
+          // Permisos incompletos, forzar logout
+          console.log('Sesión antigua detectada, cerrando sesión...')
+          localStorage.removeItem('operador')
+          setOperador(null)
+        } else {
+          setOperador(parsed)
+        }
       } catch {
         localStorage.removeItem('operador')
       }
@@ -490,6 +510,10 @@ export default function FrigorificoApp() {
         return <StockCamarasModule operador={operador} />
       case 'reportes':
         return <ReportesModule operador={operador} />
+      case 'ccir':
+        return <CumplimientoRegulatorioModule operador={operador} />
+      case 'facturacion':
+        return <FacturacionModule operador={operador} />
       case 'configuracion':
         return <ConfiguracionModule operador={operador} />
       default:

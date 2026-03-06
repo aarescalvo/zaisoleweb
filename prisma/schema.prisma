@@ -636,47 +636,73 @@ model Romaneo {
   id                String        @id @default(cuid())
   listaFaenaId      String?
   fecha             DateTime      @default(now())
-  
+
   // Datos del animal
   garron            Int
   tropaCodigo       String?
+  tropaId           String?
   numeroAnimal      Int?
   tipoAnimal        TipoAnimal?
-  raza              String?
+  raza              String?       // CA=Cruce Angus, HE=Hereford, etc.
+  caravana          String?       // Número de caravana/arete
   pesoVivo          Float?        // KG ingreso
-  
-  // Tipificación
-  denticion        String?        // Cantidad de dientes
-  tipificadorId    String?
-  tipificador      Tipificador?  @relation(fields: [tipificadorId], references: [id])
-  
+
+  // Tipificación Argentina (JPG - Juzgado Permanente de Ganadería)
+  denticion         Int?          // 0, 2, 4, 6, 8 dientes
+  categoria         CategoriaBovino? // VQ, NO, NT, VA, TO, MEJ
+  tipificacion      TipificacionRes? // M, A, S, I, N, etc.
+  grasaCobertura    GrasaCobertura?  // 1-5
+  conformacion      Conformacion?    // BUENA, REGULAR, MALA
+  colorGrasa        ColorGrasa?      // BLANCO, AMARILLENTO
+  madurez           String?          // A, B, C (por osificación)
+
+  // Clasificación para faena
+  clasificacionFaena String?       // Clasificación del tipificador
+
+  // Tipificador que realizó la clasificación
+  tipificadorId     String?
+  tipificador       Tipificador?  @relation(fields: [tipificadorId], references: [id])
+
   // Pesos de medias reses
   pesoMediaIzq      Float?
   pesoMediaDer      Float?
   pesoTotal         Float?        // Suma de ambas medias
-  
+
   // Rinde
   rinde             Float?        // Porcentaje
-  
+
+  // Destino de la producción
+  destinoId         String?       // Código de destino (.01=Italia, etc.)
+  transporteId      String?       // Código de transporte
+  tipoTrabajoId     String?       // Código de tipo trabajo
+
+  // Código EAN-128 generado
+  codigoEAN128      String?       // Código completo para rótulos
+
   // Estado
   estado            EstadoRomaneo @default(PENDIENTE)
   supervisorId      String?       // Quien confirma
   fechaConfirmacion DateTime?
   emailEnviado      Boolean       @default(false)
-  
+
+  // Sincronización offline
+  sincronizado      Boolean       @default(true)
+  fechaSincronizacion DateTime?
+
   operadorId        String?
   operador          Operador?     @relation(fields: [operadorId], references: [id])
-  
+
   observaciones     String?
-  
+
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
-  
+
   mediasRes         MediaRes[]
-  
+
   @@index([fecha])
   @@index([garron])
   @@index([estado])
+  @@index([tropaCodigo])
 }
 
 enum EstadoRomaneo {
@@ -685,32 +711,95 @@ enum EstadoRomaneo {
   ANULADO
 }
 
+// Tipificación Argentina - Categorías de Bovinos
+enum CategoriaBovino {
+  TO    // Toro
+  VA    // Vaca
+  VQ    // Vaquillona
+  MEJ   // Torito/Mej
+  NO    // Novillo
+  NT    // Novillito
+}
+
+// Tipificación de la Res (JPG)
+enum TipificacionRes {
+  M     // Macho
+  A     // Astrado (castrado)
+  S     // Sobre (mayor a 2 años)
+  I     // Intermedia
+  N     // Normal
+  AG    // Apto Global
+  AS    // Apto Superior
+  L     // Liviano
+  O     // Otro
+  MM    // Media Media
+  MP    // Media Pesada
+  MD    // Media Dura
+  NN    // No Necesaria
+  SIN   // Sin tipificación
+  IN    // Industrial
+}
+
+// Grasa de Cobertura (1-5)
+enum GrasaCobertura {
+  ESCASA     // 1 - Escasa
+  LIGHT      // 2 - Light
+  MEDIANA    // 3 - Mediana
+  ABUNDANTE  // 4 - Abundante
+  EXCESIVA   // 5 - Excesiva
+}
+
+// Conformación de la res
+enum Conformacion {
+  BUENA
+  REGULAR
+  MALA
+}
+
+// Color de la grasa
+enum ColorGrasa {
+  BLANCO
+  BLANCO_CREMOSO
+  AMARILLENTO
+}
+
 // ==================== MEDIAS RESES ====================
 
 model MediaRes {
   id            String       @id @default(cuid())
   romaneoId     String
   romaneo       Romaneo      @relation(fields: [romaneoId], references: [id])
-  
+
   lado          LadoMedia    // IZQUIERDA o DERECHA
   peso          Float
   sigla         SiglaMedia   @default(A)  // A, T, D
-  
-  // Código de barras
+
+  // Código de barras EAN-128
   codigo        String       @unique
-  
+  codigoBarras  String?      // Representación visual del código
+
+  // Datos para el rótulo
+  fechaFaena    DateTime     @default(now())
+  fechaVencimiento DateTime? // Calculado según tipo de conservación
+
+  // Información del rótulo
+  numeroRotulo  Int?         // Número correlativo de rótulo
+  vecesImpreso Int           @default(0)
+  ultimaImpresion DateTime?
+
   // Estado
   estado        EstadoMediaRes @default(EN_CAMARA)
-  
+
   // Cámara
   camaraId      String?
   camara        Camara?      @relation(fields: [camaraId], references: [id])
-  
+
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
-  
+
   @@unique([romaneoId, lado, sigla])
   @@index([estado])
+  @@index([codigo])
 }
 
 enum LadoMedia {
@@ -719,15 +808,16 @@ enum LadoMedia {
 }
 
 enum SiglaMedia {
-  A   // Asado
-  T   // Trasero
-  D   // Delantero
+  A   // Asado (media completa)
+  T   // Trasero (cuarto trasero)
+  D   // Delantero (cuarto delantero)
 }
 
 enum EstadoMediaRes {
   EN_CAMARA
   EN_CUARTEO
   DESPACHADO
+  DESECADO
 }
 
 // ==================== STOCK CÁMARA ====================
@@ -1059,4 +1149,172 @@ enum TipoProductoFactura {
   CUARTO_TRASERO    // Cuarto trasero
   MENUDENCIA        // Menudencias
   OTRO              // Otros productos
+}
+
+// ==================== CONFIGURACIÓN DE DISPOSITIVOS ====================
+
+model ConfiguracionBalanza {
+  id              String   @id @default(cuid())
+  nombre          String   @unique
+  
+  // Tipo de conexión
+  tipoConexion    String   // SERIAL, USB, TCP/IP, BLUETOOTH
+  
+  // Configuración Serial/USB
+  puerto          String?  // COM1, /dev/ttyUSB0, etc.
+  baudRate        Int?     @default(9600)
+  dataBits        Int?     @default(8)
+  parity          String?  @default("none")
+  stopBits        Int?     @default(1)
+  
+  // Configuración TCP/IP
+  ip              String?
+  puertoTcp       Int?
+  
+  // Configuración de protocolo
+  protocolo       String   @default("CONTINUO") // CONTINUO, DEMANDA, TOLEDO, METTLER
+  tiempoEstabilizacion Int @default(3) // segundos
+  pesoMinimo      Float    @default(0)
+  pesoMaximo      Float    @default(1000)
+  
+  // Estado
+  activo          Boolean  @default(true)
+  ultimoTest      DateTime?
+  estadoConexion  String   @default("DESCONECTADO")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ConfiguracionImpresora {
+  id              String   @id @default(cuid())
+  nombre          String   @unique
+  
+  // Tipo de impresora
+  tipo            String   // TERMICA, ZPL, EPL, LASER, INYECCION
+  
+  // Configuración de conexión
+  tipoConexion    String   // USB, RED, SERIAL
+  ip              String?
+  puertoRed       Int?
+  puertoSerial    String?
+  
+  // Configuración de etiqueta
+  anchoEtiqueta   Int      @default(100)  // mm
+  altoEtiqueta    Int      @default(150)  // mm
+  velocidad       Int      @default(2)    // pulgadas/seg
+  densidad        Int      @default(8)    // dpi
+  
+  // Plantilla ZPL/EPL
+  plantillaZpl    String?  // Código ZPL para impresión
+  
+  // Estado
+  activo          Boolean  @default(true)
+  esPredeterminada Boolean @default(false)
+  ultimoTest      DateTime?
+  estadoConexion  String   @default("DESCONECTADO")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relaciones
+  colasImpresion  ColaImpresion[]
+}
+
+model PlantillaRotulo {
+  id              String   @id @default(cuid())
+  nombre          String   @unique
+  descripcion     String?
+  
+  // Tipo de rótulo
+  tipo            String   // MEDIA_RES, CUARTO, MENUDENCIA, PRODUCTO
+  
+  // Dimensiones
+  ancho           Int      @default(100)  // mm
+  alto            Int      @default(150)  // mm
+  
+  // Campos del rótulo (JSON)
+  campos          String   // JSON con configuración de campos
+  
+  // Diseño
+  plantillaZpl    String?  // Código ZPL
+  plantillaHtml   String?  // Para impresión no térmica
+  
+  // Configuración de código de barras
+  tipoCodigo      String   @default("CODE128") // CODE128, EAN13, QR
+  incluirCodigo   Boolean  @default(true)
+  posicionX       Int      @default(10)
+  posicionY       Int      @default(50)
+  alturaCodigo    Int      @default(30)
+  
+  // Destino
+  destinos        String?  // JSON con lista de destinos permitidos
+  
+  activo          Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relaciones
+  colasImpresion  ColaImpresion[]
+}
+
+// ==================== COLA DE IMPRESIÓN ====================
+
+model ColaImpresion {
+  id              String   @id @default(cuid())
+  
+  // Tipo de documento
+  tipoDocumento   String   // ROTULO, ROMANEO, DTE, FACTURA
+  
+  // Referencia
+  entidadId       String?  // ID de la entidad (MediaRes, Romaneo, etc.)
+  
+  // Datos de impresión
+  datos           String   // JSON con datos a imprimir
+  plantillaId     String?
+  plantilla       PlantillaRotulo? @relation(fields: [plantillaId], references: [id])
+  
+  // Impresora
+  impresoraId     String?
+  impresora       ConfiguracionImpresora? @relation(fields: [impresoraId], references: [id])
+  
+  // Estado
+  estado          String   @default("PENDIENTE") // PENDIENTE, IMPRIMIENDO, IMPRESO, ERROR
+  intentos        Int      @default(0)
+  error           String?
+  
+  // Timestamps
+  fechaCreacion   DateTime @default(now())
+  fechaImpresion  DateTime?
+  
+  @@index([estado])
+  @@index([fechaCreacion])
+}
+
+// ==================== SINCRONIZACIÓN OFFLINE ====================
+
+model ColaSincronizacion {
+  id              String   @id @default(cuid())
+  
+  // Tipo de operación
+  operacion       String   // CREATE, UPDATE, DELETE
+  entidad         String   // Nombre de la entidad
+  entidadId       String?  // ID de la entidad
+  
+  // Datos
+  datos           String   // JSON con los datos
+  
+  // Estado
+  estado          String   @default("PENDIENTE") // PENDIENTE, SINCRONIZADO, ERROR
+  intentos        Int      @default(0)
+  error           String?
+  
+  // Timestamps
+  fechaCreacion   DateTime @default(now())
+  fechaSincronizacion DateTime?
+  
+  @@index([estado])
+  @@index([entidad])
+  @@index([fechaCreacion])
 }

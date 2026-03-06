@@ -357,14 +357,11 @@ export function Operadores({ operador }: { operador: Operador }) {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => handleToggleActivo(op)}
+                        <Switch 
+                          checked={op.activo}
+                          onCheckedChange={() => handleToggleActivo(op)}
                           disabled={op.id === operador.id}
-                        >
-                          <Switch checked={op.activo} />
-                        </Button>
+                        />
                         <Button 
                           variant="ghost" 
                           size="icon"
