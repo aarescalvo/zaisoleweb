@@ -49,3 +49,10 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Database files
+db/*.db
+db/*.db-journal
+
+# User uploaded files
+upload/
