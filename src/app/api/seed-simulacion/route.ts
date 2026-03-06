@@ -4,7 +4,6 @@ import { db } from '@/lib/db'
 // POST - Crear datos de simulación
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json()
     const hoy = new Date()
     hoy.setHours(0, 0, 0, 0)
 
@@ -89,7 +88,6 @@ export async function POST(request: NextRequest) {
       const numeroTropa = 100 + i
       const codigoTropa = `B 2026 ${numeroTropa.toString().padStart(4, '0')}`
       
-      // Verificar si ya existe
       let tropa = await db.tropa.findFirst({
         where: { codigo: codigoTropa }
       })
@@ -105,12 +103,12 @@ export async function POST(request: NextRequest) {
             especie: 'BOVINO',
             dte: `DTE-${numeroTropa}-2026`,
             guia: `G-${numeroTropa}-2026`,
-            cantidadCabezas: 15 + Math.floor(Math.random() * 20),
+            cantidadCabezas: 10,
             corralId: corrales[i % corrales.length].id,
             estado,
-            pesoBruto: estado !== 'RECIBIDO' ? 15000 + Math.random() * 5000 : null,
-            pesoTara: estado !== 'RECIBIDO' ? 5000 + Math.random() * 2000 : null,
-            pesoNeto: estado !== 'RECIBIDO' ? 10000 + Math.random() * 3000 : null,
+            pesoBruto: estado !== 'RECIBIDO' ? 15000 : null,
+            pesoTara: estado !== 'RECIBIDO' ? 5000 : null,
+            pesoNeto: estado !== 'RECIBIDO' ? 10000 : null,
             fechaRecepcion: new Date(hoy.getTime() - i * 24 * 60 * 60 * 1000)
           }
         })
@@ -125,7 +123,6 @@ export async function POST(request: NextRequest) {
       for (let j = 1; j <= cantidadAnimales; j++) {
         const codigoAnimal = `${codigoTropa.replace(/ /g, '')}-${j.toString().padStart(3, '0')}`
         
-        // Verificar si ya existe
         const animalExistente = await db.animal.findFirst({
           where: { codigo: codigoAnimal }
         })
@@ -138,8 +135,8 @@ export async function POST(request: NextRequest) {
               codigo: codigoAnimal,
               caravana: `CAR-${numeroTropa}-${j.toString().padStart(3, '0')}`,
               tipoAnimal: tiposAnimales[Math.floor(Math.random() * tiposAnimales.length)] as any,
-              raza: ['Angus', 'Hereford', 'Brangus', 'CA'][Math.floor(Math.random() * 4)],
-              pesoVivo: estado !== 'RECIBIDO' ? 400 + Math.random() * 200 : null,
+              raza: 'Angus',
+              pesoVivo: estado !== 'RECIBIDO' ? 450 : null,
               estado: getEstadoAnimal(estado),
               corralId: tropa.corralId
             }
@@ -160,8 +157,9 @@ export async function POST(request: NextRequest) {
       where: { tropaId: tropaFaenada.id }
     })
 
-    // Romaneos pendientes (de la tropa en faena)
     let garronBase = 1
+    
+    // Romaneos pendientes
     for (const animal of animalesEnFaena) {
       const romaneoExistente = await db.romaneo.findFirst({
         where: { garron: garronBase, fecha: hoy }
@@ -185,7 +183,7 @@ export async function POST(request: NextRequest) {
       garronBase++
     }
 
-    // Romaneos completados (de la tropa faenada)
+    // Romaneos completados
     for (const animal of animalesFaenados) {
       const romaneoExistente = await db.romaneo.findFirst({
         where: { garron: garronBase, fecha: hoy }

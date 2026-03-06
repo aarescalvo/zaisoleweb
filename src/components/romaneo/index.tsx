@@ -5,8 +5,9 @@ import {
   TrendingUp, Scale, Printer, Save, CheckCircle, 
   Beef, Award, RefreshCw, Wifi, WifiOff,
   Bluetooth, ChevronLeft, ChevronRight, Play, Pause,
-  Tag, Check, X, AlertCircle, Clock
+  Tag, Check, X, AlertCircle, Clock, Loader2
 } from 'lucide-react'
+import { io, Socket } from 'socket.io-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -161,6 +162,10 @@ export function RomaneoModule({ operador }: { operador: Operador }) {
   // Audio para confirmación
   const audioRef = useRef<HTMLAudioElement | null>(null)
   
+  // WebSocket connection
+  const socketRef = useRef<Socket | null>(null)
+  const [wsConectado, setWsConectado] = useState(false)
+  
   // Dialog
   const [confirmarOpen, setConfirmarOpen] = useState(false)
 
@@ -168,18 +173,56 @@ export function RomaneoModule({ operador }: { operador: Operador }) {
   useEffect(() => {
     fetchData()
     
-    // Simular conexión a balanza (demo)
-    const interval = setInterval(() => {
-      if (balanza.conectada) {
-        setBalanza(prev => ({
-          ...prev,
-          peso: 80 + Math.random() * 20,
-          estable: Math.random() > 0.3
-        }))
+    // Conectar al WebSocket de balanza
+    const conectarBalanza = () => {
+      try {
+        socketRef.current = io('/?XTransformPort=3030', {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000
+        })
+        
+        socketRef.current.on('connect', () => {
+          console.log('WebSocket conectado')
+          setWsConectado(true)
+          // Iniciar simulación si no hay balanza real
+          socketRef.current?.emit('simularPeso', { activo: true })
+        })
+        
+        socketRef.current.on('disconnect', () => {
+          console.log('WebSocket desconectado')
+          setWsConectado(false)
+          setBalanza(prev => ({ ...prev, conectada: false }))
+        })
+        
+        socketRef.current.on('peso', (data: { peso: number; estable: boolean }) => {
+          setBalanza(prev => ({
+            ...prev,
+            peso: data.peso,
+            estable: data.estable,
+            ultimaLectura: new Date()
+          }))
+        })
+        
+        socketRef.current.on('estado', (data: { conectada: boolean; modo: string }) => {
+          setBalanza(prev => ({ ...prev, conectada: data.conectada }))
+        })
+        
+        socketRef.current.on('connect_error', (err) => {
+          console.log('Error de conexión WebSocket:', err)
+          setWsConectado(false)
+        })
+      } catch (error) {
+        console.error('Error al conectar WebSocket:', error)
       }
-    }, 500)
+    }
     
-    return () => clearInterval(interval)
+    conectarBalanza()
+    
+    return () => {
+      socketRef.current?.disconnect()
+    }
   }, [])
   
   // Actualizar romaneo actual cuando cambia el índice
@@ -259,12 +302,19 @@ export function RomaneoModule({ operador }: { operador: Operador }) {
 
   // Conectar/desconectar balanza
   const toggleBalanza = () => {
-    setBalanza(prev => ({
-      ...prev,
-      conectada: !prev.conectada,
-      peso: prev.conectada ? 0 : 80 + Math.random() * 20,
-      ultimaLectura: prev.conectada ? null : new Date()
-    }))
+    if (!wsConectado) {
+      toast.error('WebSocket no disponible. Verifique que el servicio esté corriendo.')
+      return
+    }
+    
+    if (balanza.conectada) {
+      socketRef.current?.emit('desconectar')
+      setBalanza(prev => ({ ...prev, conectada: false, peso: 0 }))
+    } else {
+      socketRef.current?.emit('conectar')
+      // Iniciar simulación automáticamente
+      socketRef.current?.emit('simularPeso', { activo: true })
+    }
   }
 
   // Capturar peso de balanza

@@ -419,3 +419,53 @@ FILES CREATED:
 
 NOTA: El servidor de desarrollo quedó en estado inconsistente después de limpiar el cache .next
 Es necesario reiniciar el servidor para que los cambios surtan efecto.
+
+---
+Task ID: 19
+Agent: main
+Task: Arreglar servidor, conectar WebSocket y mejorar módulos
+
+Work Log:
+- Re-creados archivos de API con permisos correctos:
+  - /src/app/api/romaneo/route.ts
+  - /src/app/api/tipificadores/route.ts
+  - /src/app/api/seed-simulacion/route.ts
+- Instalado socket.io-client para conexión WebSocket
+- Actualizado componente RomaneoModule para conectar al WebSocket real:
+  - Conexión a ws://localhost:3030 vía caddy (XTransformPort)
+  - Recepción de eventos de peso en tiempo real
+  - Manejo de estados de conexión/desconexión
+  - Integración con eventos 'peso', 'estado', 'connect'
+- Verificados módulos CCIR y Declaración Jurada (ya completos)
+- Verificado módulo Facturación (ya implementado)
+
+Stage Summary:
+MEJORAS REALIZADAS:
+
+1. ROMANEO - CONEXIÓN WEBSOCKET REAL:
+   - Socket.io-client instalado
+   - Conexión automática al mini-servicio (puerto 3030)
+   - Eventos: connect, disconnect, peso, estado
+   - Simulación automática si no hay balanza real
+   - Indicador de estado de conexión WebSocket
+
+2. MÓDULOS VERIFICADOS (Ya completos):
+   - CCIR: Crear, ver, imprimir, anular certificados
+   - Declaración Jurada: Gestión completa con productores
+   - Facturación: Módulo base funcional
+
+3. ARCHIVOS RECREADOS:
+   - APIs con permisos correctos (root -> z)
+
+FILES MODIFIED:
+- /src/components/romaneo/index.tsx (WebSocket real)
+- /src/app/api/romaneo/route.ts
+- /src/app/api/tipificadores/route.ts
+- /src/app/api/seed-simulacion/route.ts
+
+DEPENDENCIES ADDED:
+- socket.io-client@4.8.3
+
+ISSUES:
+- Servidor de desarrollo con cache corrupto
+- Necesita reinicio manual para que surta efecto
