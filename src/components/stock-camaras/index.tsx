@@ -83,8 +83,8 @@ export function StockCamarasModule({ operador }: { operador: Operador }) {
   })
 
   // Filtros
-  const [filtroCamara, setFiltroCamara] = useState<string>('')
-  const [filtroTropa, setFiltroTropa] = useState<string>('')
+  const [filtroCamara, setFiltroCamara] = useState<string>('todas')
+  const [filtroTropa, setFiltroTropa] = useState<string>('todas')
   const [busqueda, setBusqueda] = useState('')
 
   // Modal de movimiento
@@ -183,8 +183,8 @@ export function StockCamarasModule({ operador }: { operador: Operador }) {
 
   // Filtrar medias
   const mediasFiltradas = mediasEnStock.filter(m => {
-    if (filtroCamara && m.camara !== filtroCamara) return false
-    if (filtroTropa && m.tropaCodigo !== filtroTropa) return false
+    if (filtroCamara !== 'todas' && m.camara !== filtroCamara) return false
+    if (filtroTropa !== 'todas' && m.tropaCodigo !== filtroTropa) return false
     if (busqueda && !m.codigo.toLowerCase().includes(busqueda.toLowerCase()) &&
         !m.tropaCodigo?.toLowerCase().includes(busqueda.toLowerCase())) return false
     return true
@@ -409,7 +409,7 @@ export function StockCamarasModule({ operador }: { operador: Operador }) {
                         <SelectValue placeholder="Todas" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todas</SelectItem>
+                        <SelectItem value="todas">Todas</SelectItem>
                         {camaras.map(c => (
                           <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>
                         ))}
@@ -423,7 +423,7 @@ export function StockCamarasModule({ operador }: { operador: Operador }) {
                         <SelectValue placeholder="Todas" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todas</SelectItem>
+                        <SelectItem value="todas">Todas</SelectItem>
                         {tropasUnicas.map(t => (
                           <SelectItem key={t} value={t}>{t}</SelectItem>
                         ))}
