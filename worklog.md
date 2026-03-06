@@ -878,3 +878,232 @@ PENDIENTE:
 - Importar historial de tropas 2026 del Excel SERVICIO FAENA BOVINO 2026.xlsx
 - Generar reportes: Planilla 01, Romaneo PDF, Rinde por tropa
 - Módulo de Rótulos/Etiquetas con código de barras EAN-128
+
+---
+Task ID: 22
+Agent: main
+Task: Comprensión final del flujo de datos y aclaraciones del usuario
+
+Work Log:
+- Recibidas y documentadas aclaraciones detalladas del usuario sobre el flujo operativo
+- Verificada la estructura de datos para reportes
+- Confirmados los modelos de reporte proporcionados
+
+Stage Summary:
+================================================================================
+COMPRENSIÓN FINAL DEL FLUJO DE DATOS - SOLEMAR ALIMENTARIA S.A.
+================================================================================
+
+1. FLUJO OPERATIVO COMPLETO:
+================================================================================
+
+A. INGRESO DE HACIENDA (Pesaje Camión):
+   ORIGEN DE DATOS:
+   - Productor → Del DTE (guía de transporte)
+   - Usuario/Matarife → Del DTE
+   - Nº DTE → Documento de tránsito electrónico (SIOCAL)
+   - Nº Guía → Del productor al transportista (matrícula SENASA)
+   - Patentes → Camión de transporte
+   - Cantidad cabezas → Conteo físico
+   - Peso bruto → Balanza de camión
+   - Peso tara → Balanza de camión (camión vacío)
+   - Peso neto → Calculado (bruto - tara)
+
+B. PESAJE INDIVIDUAL (OBLIGATORIO):
+   ORIGEN DE DATOS:
+   - Nº Garrón → ASIGNACIÓN AUTOMÁTICA (1 a N por lista de faena)
+   - Nº Caravana → LECTURA EN EL MOMENTO DEL PESAJE
+   - Tipo Animal → Del animal (trazado por garrón-número de animal)
+   - Peso vivo → Balanza individual
+   - Nota: Si no trae caravana, se puede cargar luego editando
+
+C. LISTA DE FAENA:
+   ORIGEN DE DATOS:
+   - Tropas a faenar → Selección manual del supervisor
+   - Cantidad por tropa → Según animales disponibles
+   - Nº Garrón → Secuencial automático (1 a cantidad total)
+   - Relación Garrón-Animal → Se asigna al momento de faena
+
+D. ROMANEO (Tipificación):
+   ORIGEN DE DATOS:
+   - Nº Garrón → Viene de la lista de faena
+   - Tipo Animal → Traído por asignación de garrón
+   - Si no hay asignación → Tipificador elige manualmente
+   - Dentición → Inspección visual (0, 2, 4, 6, 8 dientes)
+   - Categoría → VQ, NT, NO, VA, TO, MEJ
+   - Tipificación → M (Macho), A (Astrado), S (Sobre), I, N
+   - Grasa cobertura → 1-5 (Escasa a Excesiva)
+   - Conformación → Buena, Regular, Mala
+   - Peso media A → Balanza (captura automática)
+   - Peso media B → Balanza (captura automática)
+   - Rinde → Calculado: (peso total medias / peso vivo) × 100
+
+E. TIPIFICACIONES ESPECIALES (SOLO EQUINO):
+   - AG = Apto Global (solo equino)
+   - AS = Apto Superior (solo equino)
+   - IN = Industrial (combinación I+N para equino)
+   - LAND L = Marca de otro frigorífico (equinos de allí)
+
+F. DESTINOS:
+   - .01-.15 = Países de exportación (Italia, Francia, etc.)
+   - .16 = MERCADO INTERNO (Argentina)
+
+G. PRECIOS DE SERVICIO:
+   - Precio general → Se actualiza con el tiempo
+   - Precio diferenciado → Algunos clientes tienen precio especial
+   - Recupero → Precio diferenciado por tipo de servicio
+
+================================================================================
+2. REPORTES A GENERAR:
+================================================================================
+
+A. PLANILLA 01 - BOVINO (Ingreso de Hacienda):
+   MOMENTO: Se imprime luego del pesaje individual de toda la tropa
+   DESTINO: SENASA, archivo propio
+   DATOS:
+   - Fecha de planilla
+   - Nº Registro entrada
+   - Nº Semana
+   - Tropa Nº
+   - Hora ingreso
+   - Transporte: Patente chasis/acoplado, RENSPA
+   - Guía Nº, DTA Nº, Precinto Nº
+   - Productor y CUIT
+   - Por animal: Nº, Tipo, Sexo, Peso entrada, Tipificación, Corral
+
+B. ROMANEO (Por tropa, NO T88):
+   MOMENTO: Después de terminar la faena y pesar medias reses
+   DESTINO: Cliente (requiere autorización previa), SENASA (anexos), archivo
+   DATOS:
+   - Establecimiento: Mat. 300, SENASA 3986
+   - Usuario/Matarife, Productor
+   - Nº DTE, Nº Guía
+   - Fecha Faena, Nº Tropa, Cantidad cabezas
+   - Kg vivo entrada, Kg 1/2 res, Rinde %, Promedio
+   - Por animal: Garrón, Nº Animal, Raza, Tipo+Dentición, Caravana
+   - KG entrada, KG 1/2 A, KG 1/2 B, Total KG, Rinde Faena
+   - Resumen por categorías: VQ, NT, NO, TO, VA, MEJ
+
+C. RINDE DE FAENA:
+   Similar al Romaneo con foco en rendimientos
+
+================================================================================
+3. LO QUE NO SE AGREGA (según feedback del usuario):
+================================================================================
+
+- En TROPA: NO agregar "lugar donde se emitió la guía"
+- En ROMANEO: NO agregar color, desbaste, estado carne
+
+================================================================================
+4. MEJORAS PROPUESTAS A IMPLEMENTAR:
+================================================================================
+
+A. CAPTURA DE DATOS:
+   ✅ Clientes reales cargados (19)
+   ✅ Artículos/cortes cargados (42)
+   ✅ Códigos EAN-128 cargados (especie, transporte, destino, tipo trabajo)
+   ⏳ Importar historial de tropas 2026
+   ⏳ Precios de servicio por cliente/fecha
+
+B. REPORTES:
+   ⏳ Generar Planilla 01 automáticamente
+   ⏳ Generar Romaneo PDF (formato real)
+   ⏳ Generar Rinde por tropa
+   ⏳ Resumen mensual de faena (como SERVICIO FAENA 2026)
+   ⏳ Envío de romaneos por email (con autorización previa)
+
+C. MÓDULOS:
+   ✅ Pesaje Individual (con caravana)
+   ✅ Lista de Faena (con garrón automático)
+   ✅ Romaneo (con tipificación argentina)
+   ⏳ Generación de reportes PDF
+   ⏳ Envío de emails
+
+D. TÉCNICAS:
+   ✅ WebSocket para balanza (puerto 3030)
+   ⏳ PWA para offline
+   ⏳ Sincronización cuando hay conexión
+
+================================================================================
+5. SIN DUDAS PENDIENTES:
+================================================================================
+
+Todas las consultas fueron respondidas. El flujo está claro.
+
+---
+Task ID: 23
+Agent: main + subagentes
+Task: Implementar sistema completo de generación de reportes PDF
+
+Work Log:
+- Creada API /api/reportes/planilla-01/route.ts para generar PDF de Planilla 01 - Bovino
+- Creada API /api/reportes/romaneo-pdf/route.ts para generar PDF de Romaneo por tropa
+- Creada API /api/reportes/rinde/route.ts para generar PDF de Rinde de Faena
+- Creada API /api/reportes/romaneo-pdf/enviar/route.ts para envío de romaneos por email
+- Actualizado módulo ReportesModule con nueva pestaña "Documentos Oficiales"
+- Implementadas 3 secciones: Planilla 01, Romaneo, Rinde de Faena
+- Agregada funcionalidad de autorización previa para envío de emails
+- Pre-poblado automático de email del cliente al seleccionar tropa
+- Instaladas dependencias: jspdf, jspdf-autotable
+
+Stage Summary:
+================================================================================
+SISTEMA DE REPORTES PDF IMPLEMENTADO
+================================================================================
+
+1. APIs CREADAS:
+   - GET /api/reportes/planilla-01?tropaId=xxx
+     - Genera PDF de Planilla 01 - Bovino (formulario oficial SENASA)
+     - Incluye: datos de tropa, transporte, productor, tabla de animales
+     - Formato A4 con encabezado oficial (Mat. 300, SENASA 3986)
+   
+   - GET /api/reportes/romaneo-pdf?tropaId=xxx
+     - Genera PDF de Romaneo por tropa
+     - Incluye: resumen de faena, tabla por animal con tipificación
+     - Resumen por categorías: VQ, NT, NO, TO, VA, MEJ
+   
+   - GET /api/reportes/rinde?tropaId=xxx
+     - Genera PDF de Rinde de Faena
+     - Enfocado en estadísticas de rendimiento
+     - Incluye: rinde máx/mín/promedio, peso por animal
+   
+   - POST /api/reportes/romaneo-pdf/enviar
+     - Envía romaneo por email (requiere autorización previa)
+     - Registra en auditoría
+     - Marca romaneos como enviados
+
+2. MÓDULO DE REPORTES ACTUALIZADO:
+   - Nueva pestaña "Documentos Oficiales" (4ta pestaña)
+   - Sección Planilla 01 (color ámbar):
+     - Select de tropas pesadas o posteriores
+     - Botones: Generar PDF, Imprimir
+   
+   - Sección Romaneo (color azul):
+     - Select de tropas faenadas
+     - Checkbox de autorización para envío
+     - Campo email pre-poblado del cliente
+     - Botones: Generar PDF, Imprimir, Enviar por Email
+   
+   - Sección Rinde de Faena (color verde):
+     - Select de todas las tropas
+     - Botones: Generar PDF, Imprimir
+
+3. CARACTERÍSTICAS TÉCNICAS:
+   - PDFs generados con jspdf y jspdf-autotable
+   - Formato A4, orientación portrait
+   - Fuente estándar helvetica
+   - Respuesta como blob con Content-Type: application/pdf
+   - Manejo de errores robusto
+
+FILES CREATED:
+- /src/app/api/reportes/planilla-01/route.ts
+- /src/app/api/reportes/romaneo-pdf/route.ts
+- /src/app/api/reportes/rinde/route.ts
+- /src/app/api/reportes/romaneo-pdf/enviar/route.ts
+
+FILES MODIFIED:
+- /src/components/reportes/index.tsx (nueva pestaña + funcionalidades)
+
+DEPENDENCIES ADDED:
+- jspdf@4.2.0
+- jspdf-autotable@5.0.7

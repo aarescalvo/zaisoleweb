@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import { 
-  FileText, TrendingUp, Package, Calendar, Download, Filter, Printer, RefreshCw
+  FileText, TrendingUp, Package, Calendar, Download, Filter, Printer, RefreshCw,
+  FileCheck, Mail, Loader2, Send
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 
 interface FaenaDiaria {
@@ -43,6 +46,24 @@ interface Operador {
   nivel: string
 }
 
+interface Tropa {
+  id: string
+  codigo: string
+  codigoSimplificado: string
+  estado: string
+  cantidadCabezas: number
+  productor?: {
+    id: string
+    nombre: string
+    email?: string
+  }
+  usuarioFaena?: {
+    id: string
+    nombre: string
+    email?: string
+  }
+}
+
 export function ReportesModule({ operador }: { operador: Operador }) {
   const [loading, setLoading] = useState(true)
   const [faenaDiaria, setFaenaDiaria] = useState<FaenaDiaria[]>([])
@@ -53,8 +74,29 @@ export function ReportesModule({ operador }: { operador: Operador }) {
   const [fechaHasta, setFechaHasta] = useState<string>('')
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
 
+  // Estados para Documentos Oficiales
+  const [tropasPesadas, setTropasPesadas] = useState<Tropa[]>([])
+  const [tropasFaenadas, setTropasFaenadas] = useState<Tropa[]>([])
+  const [tropasTodas, setTropasTodas] = useState<Tropa[]>([])
+  
+  // Planilla 01
+  const [planilla01TropaId, setPlanilla01TropaId] = useState<string>('')
+  const [planilla01Loading, setPlanilla01Loading] = useState(false)
+  
+  // Romaneo
+  const [romaneoTropaId, setRomaneoTropaId] = useState<string>('')
+  const [romaneoAutorizado, setRomaneoAutorizado] = useState(false)
+  const [romaneoEmail, setRomaneoEmail] = useState<string>('')
+  const [romaneoLoading, setRomaneoLoading] = useState(false)
+  const [romaneoEmailLoading, setRomaneoEmailLoading] = useState(false)
+  
+  // Rinde
+  const [rindeTropaId, setRindeTropaId] = useState<string>('')
+  const [rindeLoading, setRindeLoading] = useState(false)
+
   useEffect(() => {
     fetchData()
+    fetchTropas()
   }, [])
 
   const fetchData = async () => {
@@ -80,6 +122,32 @@ export function ReportesModule({ operador }: { operador: Operador }) {
       toast.error('Error de conexión')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTropas = async () => {
+    try {
+      // Tropas pesadas o posteriores (PESADO, LISTO_FAENA, EN_FAENA, FAENADO)
+      const resPesadas = await fetch('/api/tropas')
+      const dataPesadas = await resPesadas.json()
+      
+      if (dataPesadas.success) {
+        const allTropas = dataPesadas.data as Tropa[]
+        
+        // Tropas en estado PESADO o posterior
+        const estadosPesados = ['PESADO', 'LISTO_FAENA', 'EN_FAENA', 'FAENADO']
+        const pesadas = allTropas.filter(t => estadosPesados.includes(t.estado))
+        setTropasPesadas(pesadas)
+        
+        // Tropas faenadas
+        const faenadas = allTropas.filter(t => t.estado === 'FAENADO')
+        setTropasFaenadas(faenadas)
+        
+        // Todas las tropas
+        setTropasTodas(allTropas)
+      }
+    } catch (error) {
+      console.error('Error fetching tropas:', error)
     }
   }
 
@@ -109,6 +177,110 @@ export function ReportesModule({ operador }: { operador: Operador }) {
     link.download = `reporte_${tipo}_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
     toast.success('CSV descargado')
+  }
+
+  // Función para generar y descargar PDF
+  const generarPDF = async (endpoint: string, tropaId: string, loadingSetter: (v: boolean) => void) => {
+    if (!tropaId) {
+      toast.error('Seleccione una tropa')
+      return
+    }
+    
+    loadingSetter(true)
+    try {
+      const response = await fetch(`${endpoint}?tropaId=${tropaId}`, {
+        method: 'GET',
+      })
+      
+      if (!response.ok) {
+        throw new Error('Error al generar PDF')
+      }
+      
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      
+      // Abrir en nueva ventana
+      window.open(url, '_blank')
+      toast.success('PDF generado correctamente')
+      
+      return url
+    } catch (error) {
+      console.error('Error generando PDF:', error)
+      toast.error('Error al generar el PDF')
+      return null
+    } finally {
+      loadingSetter(false)
+    }
+  }
+
+  // Función para imprimir PDF
+  const imprimirPDF = async (endpoint: string, tropaId: string, loadingSetter: (v: boolean) => void) => {
+    const url = await generarPDF(endpoint, tropaId, loadingSetter)
+    if (url) {
+      // El PDF ya se abrió en nueva ventana, el usuario puede imprimir desde ahí
+      toast.info('PDF abierto en nueva ventana. Use Ctrl+P para imprimir.')
+    }
+  }
+
+  // Función para enviar por email
+  const enviarRomaneoEmail = async () => {
+    if (!romaneoTropaId) {
+      toast.error('Seleccione una tropa')
+      return
+    }
+    
+    if (!romaneoAutorizado) {
+      toast.error('Debe autorizar el envío marcando el checkbox')
+      return
+    }
+    
+    if (!romaneoEmail) {
+      toast.error('Ingrese un email destinatario')
+      return
+    }
+    
+    setRomaneoEmailLoading(true)
+    try {
+      const response = await fetch('/api/reportes/romaneo-pdf/enviar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tropaId: romaneoTropaId,
+          email: romaneoEmail,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success('Romaneo enviado por email correctamente')
+      } else {
+        throw new Error(data.error || 'Error al enviar email')
+      }
+    } catch (error) {
+      console.error('Error enviando email:', error)
+      toast.error('Error al enviar el email')
+    } finally {
+      setRomaneoEmailLoading(false)
+    }
+  }
+
+  // Handler para cambio de tropa en Romaneo
+  const handleRomaneoTropaChange = (tropaId: string) => {
+    setRomaneoTropaId(tropaId)
+    setRomaneoAutorizado(false)
+    
+    // Pre-poblar email del cliente
+    const tropa = tropasFaenadas.find(t => t.id === tropaId)
+    if (tropa?.productor?.email) {
+      setRomaneoEmail(tropa.productor.email)
+    } else if (tropa?.usuarioFaena?.email) {
+      setRomaneoEmail(tropa.usuarioFaena.email)
+    } else {
+      setRomaneoEmail('')
+    }
   }
 
   if (loading) {
@@ -163,10 +335,11 @@ export function ReportesModule({ operador }: { operador: Operador }) {
 
         {/* Tabs */}
         <Tabs defaultValue="faena" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="faena">Faena Diaria</TabsTrigger>
             <TabsTrigger value="rendimiento">Rendimiento</TabsTrigger>
             <TabsTrigger value="stock">Stock Cámaras</TabsTrigger>
+            <TabsTrigger value="documentos">Documentos Oficiales</TabsTrigger>
           </TabsList>
 
           {/* Tab: Faena Diaria */}
@@ -296,6 +469,242 @@ export function ReportesModule({ operador }: { operador: Operador }) {
                     </TableBody>
                   </Table>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab: Documentos Oficiales */}
+          <TabsContent value="documentos" className="space-y-6">
+            {/* Sección: Planilla 01 */}
+            <Card className="border-0 shadow-md">
+              <CardHeader className="bg-amber-50 rounded-t-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <FileCheck className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Planilla 01 - Ingreso de Hacienda</CardTitle>
+                    <CardDescription>Documento oficial para SENASA con datos del ingreso</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium">Seleccionar Tropa</Label>
+                    <p className="text-xs text-stone-500 mb-2">Solo tropas con pesaje completado</p>
+                    <Select value={planilla01TropaId} onValueChange={setPlanilla01TropaId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione una tropa..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tropasPesadas.length === 0 ? (
+                          <div className="px-2 py-4 text-center text-stone-400 text-sm">
+                            No hay tropas pesadas
+                          </div>
+                        ) : (
+                          tropasPesadas.map(tropa => (
+                            <SelectItem key={tropa.id} value={tropa.id}>
+                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || 'Sin productor'} ({tropa.cantidadCabezas} cab.)
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => generarPDF('/api/reportes/planilla-01', planilla01TropaId, setPlanilla01Loading)}
+                      disabled={!planilla01TropaId || planilla01Loading}
+                      className="bg-amber-600 hover:bg-amber-700"
+                    >
+                      {planilla01Loading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <FileText className="w-4 h-4 mr-2" />
+                      )}
+                      Generar PDF
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => imprimirPDF('/api/reportes/planilla-01', planilla01TropaId, setPlanilla01Loading)}
+                      disabled={!planilla01TropaId || planilla01Loading}
+                    >
+                      <Printer className="w-4 h-4 mr-2" />
+                      Imprimir
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sección: Romaneo */}
+            <Card className="border-0 shadow-md">
+              <CardHeader className="bg-blue-50 rounded-t-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Romaneo</CardTitle>
+                    <CardDescription>Reporte de faena con tipificación y pesos</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium">Seleccionar Tropa</Label>
+                    <p className="text-xs text-stone-500 mb-2">Solo tropas faenadas</p>
+                    <Select value={romaneoTropaId} onValueChange={handleRomaneoTropaChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione una tropa..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tropasFaenadas.length === 0 ? (
+                          <div className="px-2 py-4 text-center text-stone-400 text-sm">
+                            No hay tropas faenadas
+                          </div>
+                        ) : (
+                          tropasFaenadas.map(tropa => (
+                            <SelectItem key={tropa.id} value={tropa.id}>
+                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || 'Sin productor'} ({tropa.cantidadCabezas} cab.)
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => generarPDF('/api/reportes/romaneo-pdf', romaneoTropaId, setRomaneoLoading)}
+                      disabled={!romaneoTropaId || romaneoLoading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {romaneoLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <FileText className="w-4 h-4 mr-2" />
+                      )}
+                      Generar PDF
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => imprimirPDF('/api/reportes/romaneo-pdf', romaneoTropaId, setRomaneoLoading)}
+                      disabled={!romaneoTropaId || romaneoLoading}
+                    >
+                      <Printer className="w-4 h-4 mr-2" />
+                      Imprimir
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Envío por Email */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="autorizado" 
+                      checked={romaneoAutorizado} 
+                      onCheckedChange={(checked) => setRomaneoAutorizado(checked as boolean)}
+                      disabled={!romaneoTropaId}
+                    />
+                    <Label htmlFor="autorizado" className="text-sm font-medium cursor-pointer">
+                      Autorizado para envío
+                    </Label>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium">Email destinatario</Label>
+                      <p className="text-xs text-stone-500 mb-2">Pre-poblado con el email del cliente</p>
+                      <Input 
+                        type="email"
+                        placeholder="email@ejemplo.com"
+                        value={romaneoEmail}
+                        onChange={(e) => setRomaneoEmail(e.target.value)}
+                        disabled={!romaneoTropaId}
+                      />
+                    </div>
+                    <Button 
+                      variant="outline"
+                      onClick={enviarRomaneoEmail}
+                      disabled={!romaneoTropaId || !romaneoAutorizado || !romaneoEmail || romaneoEmailLoading}
+                      className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    >
+                      {romaneoEmailLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4 mr-2" />
+                      )}
+                      Enviar por Email
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sección: Rinde de Faena */}
+            <Card className="border-0 shadow-md">
+              <CardHeader className="bg-green-50 rounded-t-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Rinde de Faena</CardTitle>
+                    <CardDescription>Reporte de rendimiento por animal y total</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium">Seleccionar Tropa</Label>
+                    <p className="text-xs text-stone-500 mb-2">Cualquier tropa con datos de faena</p>
+                    <Select value={rindeTropaId} onValueChange={setRindeTropaId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione una tropa..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tropasTodas.length === 0 ? (
+                          <div className="px-2 py-4 text-center text-stone-400 text-sm">
+                            No hay tropas disponibles
+                          </div>
+                        ) : (
+                          tropasTodas.map(tropa => (
+                            <SelectItem key={tropa.id} value={tropa.id}>
+                              {tropa.codigoSimplificado || tropa.codigo} - {tropa.productor?.nombre || 'Sin productor'} ({tropa.cantidadCabezas} cab.) - {tropa.estado}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => generarPDF('/api/reportes/rinde', rindeTropaId, setRindeLoading)}
+                      disabled={!rindeTropaId || rindeLoading}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {rindeLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <FileText className="w-4 h-4 mr-2" />
+                      )}
+                      Generar PDF
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => imprimirPDF('/api/reportes/rinde', rindeTropaId, setRindeLoading)}
+                      disabled={!rindeTropaId || rindeLoading}
+                    >
+                      <Printer className="w-4 h-4 mr-2" />
+                      Imprimir
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
