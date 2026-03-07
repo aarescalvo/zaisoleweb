@@ -127,6 +127,37 @@ model Producto {
   @@index([especie])
 }
 
+// ==================== SUBPRODUCTOS ====================
+
+model Subproducto {
+  id                String        @id @default(cuid())
+  codigo            String        // Código interno
+  nombre            String
+  descripcion       String?
+  
+  // Categorización
+  categoria         String?       // Menudencia, Cuero, Sebo, etc.
+  tipo              String?       // Tipo específico
+  
+  // Precios y costos
+  precioKg          Float?
+  costoProcesamiento Float?
+  
+  // Trazabilidad
+  requiereTrazabilidad Boolean    @default(false)
+  
+  // Stock
+  unidadMedida      String        @default("KG")  // KG, UN
+  stockMinimo       Float?
+  
+  activo            Boolean       @default(true)
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  @@unique([codigo])
+}
+
 enum TipoRotulo {
   MEDIA_RES
   CUARTO
@@ -199,25 +230,83 @@ enum RolOperador {
   ADMINISTRADOR
 }
 
-// ==================== CLIENTES / PROVEEDORES ====================
+// ==================== USUARIOS (Clientes que usan el servicio de faena) ====================
 
-model Cliente {
+model Usuario {
   id              String   @id @default(cuid())
   nombre          String
   cuit            String?  @unique
   direccion       String?
   telefono        String?
   email           String?
-  esProductor     Boolean  @default(false)
-  esUsuarioFaena  Boolean  @default(false)
+  
+  // Tipos de usuario (puede ser más de uno)
+  esUsuarioFaena  Boolean  @default(false)  // Usa servicio de faena
+  esProductor     Boolean  @default(false)  // Es productor de hacienda
+  esConsignatario Boolean  @default(false)  // Es consignatario
+  esProveedor     Boolean  @default(false)  // Es proveedor
+  
+  // Datos adicionales
+  observaciones   String?
+  activo          Boolean  @default(true)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
+  // Relaciones
   tropasComoProductor    Tropa[]    @relation("ProductorTropas")
   tropasComoUsuarioFaena Tropa[]    @relation("UsuarioFaenaTropas")
   facturas               Factura[]
   declaracionesJuradas   DeclaracionJurada[]
+}
+
+// ==================== PRODUCTORES / CONSIGNATARIOS ====================
+
+model ProductorConsignatario {
+  id              String   @id @default(cuid())
+  nombre          String
+  cuit            String?  @unique
+  direccion       String?
+  telefono        String?
+  email           String?
+  
+  // Tipo
+  tipo            String   @default("PRODUCTOR")  // PRODUCTOR, CONSIGNATARIO, AMBOS
+  
+  // Datos RENSPA (para productores)
+  numeroRenspa    String?
+  numeroEstablecimiento String?
+  localidad       String?
+  provincia       String?
+  
+  // Datos adicionales
+  observaciones   String?
+  activo          Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== PROVEEDORES ====================
+
+model Proveedor {
+  id              String   @id @default(cuid())
+  nombre          String
+  cuit            String?  @unique
+  direccion       String?
+  telefono        String?
+  email           String?
+  
+  // Tipo de proveedor
+  tipo            String?  // Insumos, Servicios, Equipos, etc.
+  
+  // Datos adicionales
+  contacto        String?
+  observaciones   String?
+  activo          Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // ==================== TRANSPORTISTAS ====================
@@ -298,9 +387,9 @@ model Tropa {
   
   // Origen de los animales
   productorId     String?
-  productor       Cliente?    @relation("ProductorTropas", fields: [productorId], references: [id])
+  productor       Usuario?    @relation("ProductorTropas", fields: [productorId], references: [id])
   usuarioFaenaId  String
-  usuarioFaena    Cliente     @relation("UsuarioFaenaTropas", fields: [usuarioFaenaId], references: [id])
+  usuarioFaena    Usuario     @relation("UsuarioFaenaTropas", fields: [usuarioFaenaId], references: [id])
   
   especie         Especie     @default(BOVINO)
   
@@ -916,7 +1005,7 @@ model DeclaracionJurada {
   
   // Datos del productor
   productorId           String?
-  productor             Cliente?            @relation(fields: [productorId], references: [id])
+  productor             Usuario?            @relation(fields: [productorId], references: [id])
   nombreProductor       String              // Nombre del productor (denormalizado)
   cuitProductor         String?             // CUIT del productor
   direccionProductor    String?             // Dirección del productor
@@ -977,9 +1066,9 @@ model Factura {
   numero            String        @unique  // N° de factura (ej: 0001-00001234)
   numeroInterno     Int                    // Número secuencial interno
   
-  // Cliente
+  // Cliente/Usuario
   clienteId         String
-  cliente           Cliente       @relation(fields: [clienteId], references: [id])
+  cliente           Usuario       @relation(fields: [clienteId], references: [id])
   
   // Fechas
   fecha             DateTime      @default(now())

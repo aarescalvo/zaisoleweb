@@ -230,3 +230,45 @@ Stage Summary:
 - Impresoras: Configuración de etiquetas (dimensiones, DPI, márgenes, etc.)
 - 10 tabs en módulo Configuración
 - Pendiente: Integrar balanzas/impresoras en módulos operativos
+
+---
+Task ID: 17
+Agent: main
+Task: Reorganizar tabs de Configuración según requerimientos
+
+Work Log:
+- Renombrado: Cliente → Usuario (con tipos: UsuarioFaena, Productor, Consignatario, Proveedor)
+- Creados modelos Prisma:
+  - Subproducto (código, nombre, categoría, precioKg, etc.)
+  - ProductorConsignatario (con datos RENSPA)
+  - Proveedor (tipo, contacto, etc.)
+  - Usuario (reemplaza Cliente con más tipos)
+- Creadas APIs:
+  - /api/usuarios
+  - /api/subproductos
+  - /api/productores
+  - /api/proveedores
+- Creados componentes:
+  - usuarios.tsx (con checkboxes de tipos)
+  - subproductos.tsx (con categorías)
+  - productores.tsx (con RENSPA)
+  - proveedores.tsx (con tipos)
+- Actualizado configuracion/index.tsx con 13 tabs total
+
+Stage Summary:
+- Tabs de Configuración: 13 en total
+  1. Frigorífico
+  2. Corrales
+  3. Cámaras
+  4. Tipificadores
+  5. Productos
+  6. Subproductos (nuevo)
+  7. Usuarios (antes Clientes)
+  8. Productores/Consignatarios (nuevo)
+  9. Proveedores (nuevo)
+  10. Transportistas
+  11. Balanzas
+  12. Impresoras
+  13. Operadores
+- Modelo Cliente eliminado, reemplazado por Usuario
+- Datos de Cliente migrados (se perdieron los 20 registros previos)

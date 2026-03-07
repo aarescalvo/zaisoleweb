@@ -1,17 +1,20 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Warehouse, UserCheck, Package, Users, Truck, Beef, Scale, Printer } from 'lucide-react'
+import { Building2, Warehouse, UserCheck, Package, Users, Truck, Scale, Printer, Farm, Layers, ShoppingBag } from 'lucide-react'
 import { ConfigFrigorifico } from './config-frigorifico'
 import { Corrales } from './corrales'
 import { Camaras } from './camaras'
 import { Tipificadores } from './tipificadores'
 import { Productos } from './productos'
-import { Operadores } from './operadores'
+import { Subproductos } from './subproductos'
+import { Usuarios } from './usuarios'
+import { Productores } from './productores'
+import { Proveedores } from './proveedores'
 import { Transportistas } from './transportistas'
-import { Clientes } from './clientes'
 import { Balanzas } from './balanzas'
 import { Impresoras } from './impresoras'
+import { Operadores } from './operadores'
 
 interface Operador {
   id: string
@@ -29,46 +32,58 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
         </div>
 
         <Tabs defaultValue="frigorifico" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 gap-1 h-auto">
+          <TabsList className="flex flex-wrap w-full gap-1 h-auto">
             <TabsTrigger value="frigorifico" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Building2 className="w-4 h-4" />
-              <span className="hidden lg:inline">Frigorífico</span>
+              <span className="hidden sm:inline">Frigorífico</span>
             </TabsTrigger>
             <TabsTrigger value="corrales" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Warehouse className="w-4 h-4" />
-              <span className="hidden lg:inline">Corrales</span>
+              <span className="hidden sm:inline">Corrales</span>
             </TabsTrigger>
             <TabsTrigger value="camaras" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Warehouse className="w-4 h-4" />
-              <span className="hidden lg:inline">Cámaras</span>
+              <span className="hidden sm:inline">Cámaras</span>
             </TabsTrigger>
             <TabsTrigger value="tipificadores" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <UserCheck className="w-4 h-4" />
-              <span className="hidden lg:inline">Tipific.</span>
+              <span className="hidden sm:inline">Tipific.</span>
             </TabsTrigger>
             <TabsTrigger value="productos" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Package className="w-4 h-4" />
-              <span className="hidden lg:inline">Productos</span>
+              <span className="hidden sm:inline">Productos</span>
             </TabsTrigger>
-            <TabsTrigger value="clientes" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
-              <Beef className="w-4 h-4" />
-              <span className="hidden lg:inline">Clientes</span>
+            <TabsTrigger value="subproductos" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <Layers className="w-4 h-4" />
+              <span className="hidden sm:inline">Subproductos</span>
+            </TabsTrigger>
+            <TabsTrigger value="usuarios" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Usuarios</span>
+            </TabsTrigger>
+            <TabsTrigger value="productores" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <Farm className="w-4 h-4" />
+              <span className="hidden sm:inline">Productores</span>
+            </TabsTrigger>
+            <TabsTrigger value="proveedores" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <ShoppingBag className="w-4 h-4" />
+              <span className="hidden sm:inline">Proveedores</span>
             </TabsTrigger>
             <TabsTrigger value="transportistas" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Truck className="w-4 h-4" />
-              <span className="hidden lg:inline">Transp.</span>
+              <span className="hidden sm:inline">Transp.</span>
             </TabsTrigger>
             <TabsTrigger value="balanzas" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Scale className="w-4 h-4" />
-              <span className="hidden lg:inline">Balanzas</span>
+              <span className="hidden sm:inline">Balanzas</span>
             </TabsTrigger>
             <TabsTrigger value="impresoras" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Printer className="w-4 h-4" />
-              <span className="hidden lg:inline">Impres.</span>
+              <span className="hidden sm:inline">Impres.</span>
             </TabsTrigger>
             <TabsTrigger value="operadores" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Users className="w-4 h-4" />
-              <span className="hidden lg:inline">Operadores</span>
+              <span className="hidden sm:inline">Operadores</span>
             </TabsTrigger>
           </TabsList>
 
@@ -87,8 +102,17 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
           <TabsContent value="productos">
             <Productos operador={operador} />
           </TabsContent>
-          <TabsContent value="clientes">
-            <Clientes operador={operador} />
+          <TabsContent value="subproductos">
+            <Subproductos operador={operador} />
+          </TabsContent>
+          <TabsContent value="usuarios">
+            <Usuarios operador={operador} />
+          </TabsContent>
+          <TabsContent value="productores">
+            <Productores operador={operador} />
+          </TabsContent>
+          <TabsContent value="proveedores">
+            <Proveedores operador={operador} />
           </TabsContent>
           <TabsContent value="transportistas">
             <Transportistas operador={operador} />
