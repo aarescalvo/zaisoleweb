@@ -260,6 +260,7 @@ export async function POST(request: NextRequest) {
           nombre: operador.nombre,
           usuario: operador.usuario,
           rol: operador.rol,
+          nivel: operador.rol, // Nivel es igual al rol para compatibilidad
           email: operador.email,
           sessionToken,
           sessionId: sesion.id,
@@ -380,6 +381,7 @@ export async function POST(request: NextRequest) {
           nombre: operador.nombre,
           usuario: operador.usuario,
           rol: operador.rol,
+          nivel: operador.rol, // Nivel es igual al rol para compatibilidad
           email: operador.email,
           sessionToken,
           sessionId: sesion.id,

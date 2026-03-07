@@ -39,6 +39,7 @@ interface Operador {
   nombre: string
   usuario: string
   rol: string
+  nivel: string  // Agregado para compatibilidad con componentes
   email?: string
   permisos: {
     puedePesajeCamiones: boolean

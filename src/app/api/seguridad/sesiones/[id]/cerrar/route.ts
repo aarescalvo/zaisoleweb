@@ -4,10 +4,10 @@ import { db } from '@/lib/db'
 // POST - Cerrar sesión forzadamente
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sesionId = params.id
+    const { id: sesionId } = await params
     
     const sesion = await db.sesion.findUnique({
       where: { id: sesionId }

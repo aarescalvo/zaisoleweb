@@ -49,6 +49,7 @@ interface Caja {
   nombre: string
   moneda: string
   saldoActual: number
+  activo?: boolean
 }
 
 interface Props {

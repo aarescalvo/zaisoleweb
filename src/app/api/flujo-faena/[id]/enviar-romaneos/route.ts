@@ -20,12 +20,7 @@ export async function PUT(
               include: {
                 tropa: {
                   include: {
-                    usuarioFaena: true,
-                    romaneos: {
-                      include: {
-                        mediasRes: true
-                      }
-                    }
+                    usuarioFaena: true
                   }
                 }
               }
@@ -68,31 +63,18 @@ export async function PUT(
 
     // Get all unique clients from the tropas
     const clientes = new Set<string>()
-    const romaneosGenerados: any[] = []
 
-    flujoActual.listaFaena?.tropas.forEach(tropaItem => {
-      if (tropaItem.tropa.usuarioFaena) {
-        clientes.add(JSON.stringify({
-          id: tropaItem.tropa.usuarioFaenaId,
-          nombre: tropaItem.tropa.usuarioFaena.nombre,
-          email: tropaItem.tropa.usuarioFaena.email
-        }))
+    if (flujoActual.listaFaena) {
+      for (const tropaItem of flujoActual.listaFaena.tropas) {
+        if (tropaItem.tropa.usuarioFaena) {
+          clientes.add(JSON.stringify({
+            id: tropaItem.tropa.usuarioFaenaId,
+            nombre: tropaItem.tropa.usuarioFaena.nombre,
+            email: tropaItem.tropa.usuarioFaena.email
+          }))
+        }
       }
-      
-      // Collect romaneo data
-      if (tropaItem.tropa.romaneos) {
-        tropaItem.tropa.romaneos.forEach(romaneo => {
-          romaneosGenerados.push({
-            garron: romaneo.garron,
-            tropaCodigo: romaneo.tropaCodigo,
-            pesoTotal: romaneo.pesoTotal,
-            pesoVivo: romaneo.pesoVivo,
-            rinde: romaneo.rinde,
-            mediasCount: romaneo.mediasRes?.length || 0
-          })
-        })
-      }
-    })
+    }
 
     const clientesArray = Array.from(clientes).map(c => JSON.parse(c))
 
@@ -102,7 +84,6 @@ export async function PUT(
       metodoEnvio: metodoEnvio || 'EMAIL',
       destinatarios: destinatarios || clientesArray,
       totalClientes: clientesArray.length,
-      totalRomaneos: romaneosGenerados.length,
       enviadoPor: operadorId
     }
 

@@ -41,7 +41,7 @@ export async function GET(
           raza: a.raza,
           pesoVivo: a.pesoVivo,
           estado: a.estado,
-          corral: a.corral,
+          corralId: a.corralId,
           fechaBaja: a.fechaBaja,
           motivoBaja: a.motivoBaja
         }))

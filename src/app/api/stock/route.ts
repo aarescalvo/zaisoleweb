@@ -5,18 +5,21 @@ import { db } from '@/lib/db'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const camara = searchParams.get('camara')
+    const camaraId = searchParams.get('camara')
     
     const where: Record<string, unknown> = {}
     
-    if (camara) {
-      where.camara = camara
+    if (camaraId) {
+      where.camaraId = camaraId
     }
     
-    const stock = await db.stockCamara.findMany({
+    const stock = await db.stockMediaRes.findMany({
       where,
+      include: {
+        camara: true
+      },
       orderBy: {
-        createdAt: 'desc'
+        fechaIngreso: 'desc'
       }
     })
     
@@ -24,12 +27,13 @@ export async function GET(request: NextRequest) {
       success: true,
       data: stock.map(s => ({
         id: s.id,
-        camara: s.camara,
-        producto: s.producto,
+        camaraId: s.camaraId,
+        camara: s.camara?.nombre,
+        tropaCodigo: s.tropaCodigo,
+        especie: s.especie,
         cantidad: s.cantidad,
         pesoTotal: s.pesoTotal,
-        fechaIngreso: s.fechaIngreso.toLocaleDateString('es-AR'),
-        observaciones: s.observaciones
+        fechaIngreso: s.fechaIngreso.toLocaleDateString('es-AR')
       }))
     })
   } catch (error) {
@@ -45,15 +49,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { camara, producto, cantidad, pesoTotal, observaciones } = body
+    const { camaraId, tropaCodigo, especie, cantidad, pesoTotal } = body
     
-    const stock = await db.stockCamara.create({
+    const stock = await db.stockMediaRes.create({
       data: {
-        camara,
-        producto,
-        cantidad: parseInt(cantidad),
-        pesoTotal: parseFloat(pesoTotal),
-        observaciones
+        camaraId,
+        tropaCodigo,
+        especie: especie || 'BOVINO',
+        cantidad: parseInt(cantidad) || 0,
+        pesoTotal: parseFloat(pesoTotal) || 0
       }
     })
     
@@ -61,8 +65,9 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         id: stock.id,
-        camara: stock.camara,
-        producto: stock.producto,
+        camaraId: stock.camaraId,
+        tropaCodigo: stock.tropaCodigo,
+        especie: stock.especie,
         cantidad: stock.cantidad,
         pesoTotal: stock.pesoTotal,
         fechaIngreso: stock.fechaIngreso.toLocaleDateString('es-AR')

@@ -7,10 +7,11 @@ export async function GET(request: NextRequest) {
     // Get all tropas with corral assigned
     const tropas = await db.tropa.findMany({
       where: {
-        corral: { not: null },
+        corralId: { not: null },
         estado: { notIn: ['FAENADO', 'DESPACHADO'] }
       },
       include: {
+        corral: true,
         _count: {
           select: { animales: true }
         }
@@ -21,10 +22,10 @@ export async function GET(request: NextRequest) {
     const corralesMap = new Map<string, { totalCabezas: number; tropas: { codigo: string; cantidad: number }[] }>()
 
     for (const tropa of tropas) {
-      if (!tropa.corral) continue
+      if (!tropa.corralId || !tropa.corral) continue
 
-      const corral = tropa.corral
-      const existing = corralesMap.get(corral) || { totalCabezas: 0, tropas: [] }
+      const corralNombre = tropa.corral.nombre
+      const existing = corralesMap.get(corralNombre) || { totalCabezas: 0, tropas: [] }
       
       // Use animal count if available, otherwise use cantidadCabezas
       const cantidad = tropa._count.animales || tropa.cantidadCabezas
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
       existing.totalCabezas += cantidad
       existing.tropas.push({ codigo: tropa.codigo, cantidad })
       
-      corralesMap.set(corral, existing)
+      corralesMap.set(corralNombre, existing)
     }
 
     // Convert to array

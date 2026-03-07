@@ -4,10 +4,10 @@ import { db } from '@/lib/db'
 // DELETE - Desbloquear IP
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const bloqueoId = params.id
+    const { id: bloqueoId } = await params
     
     const bloqueo = await db.ipBloqueada.findUnique({
       where: { id: bloqueoId }
@@ -36,7 +36,7 @@ export async function DELETE(
         entidad: 'IpBloqueada',
         entidadId: bloqueoId,
         descripcion: `IP desbloqueada: ${bloqueo.ip}`,
-        datosAntes: { ip: bloqueo.ip, motivo: bloqueo.motivo }
+        datosAntes: JSON.stringify({ ip: bloqueo.ip, motivo: bloqueo.motivo })
       }
     })
     

@@ -125,8 +125,8 @@ export async function GET() {
       if (!acc[mesKey]) {
         acc[mesKey] = { mes: mesKey, animales: 0, peso: 0 }
       }
-      acc[mesKey].animales += b.cantidadFaenada || 0
-      acc[mesKey].peso += b.pesoTotal || 0
+      acc[mesKey].animales += b.cantidadCabezas || 0
+      acc[mesKey].peso += b.pesoFrioTotal || 0
       return acc
     }, {} as Record<string, { mes: string; animales: number; peso: number }>)
     
@@ -172,7 +172,7 @@ export async function GET() {
     const en7Dias = subDays(hoy, -7)
     const chequesAVencer = await db.cheque.count({
       where: {
-        estado: 'PENDIENTE',
+        estado: 'RECIBIDO',
         fechaVencimiento: { gte: hoy, lte: en7Dias }
       }
     })
@@ -262,7 +262,16 @@ export async function GET() {
     
     // ===== ALERTAS =====
     
-    const alertas = []
+    const alertas: Array<{
+      id: string;
+      tipo: 'stock_bajo' | 'cheque_vencer' | 'arqueo_pendiente' | 'factura_vencida' | 'orden_atrasada';
+      titulo: string;
+      descripcion: string;
+      prioridad: 'alta' | 'media' | 'baja';
+      detalle?: string;
+      fecha?: string;
+      monto?: number;
+    }> = []
     
     // Stock bajo
     const insumosStockBajo = await db.stockInsumo.findMany({
@@ -289,7 +298,7 @@ export async function GET() {
     // Cheques a vencer
     const chequesProximos = await db.cheque.findMany({
       where: {
-        estado: 'PENDIENTE',
+        estado: 'RECIBIDO',
         fechaVencimiento: { gte: hoy, lte: en7Dias }
       },
       take: 3

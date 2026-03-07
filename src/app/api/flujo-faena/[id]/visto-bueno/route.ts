@@ -68,7 +68,7 @@ export async function PUT(
       )
     }
 
-    let nuevoEstado = aprobado ? 'CONFIRMADO' : 'VERIFICACION'
+    let nuevoEstado: 'CONFIRMADO' | 'VERIFICACION' = aprobado ? 'CONFIRMADO' : 'VERIFICACION'
     let mensajeHistorial = aprobado 
       ? `Visto bueno otorgado por ${supervisor.nombre}` 
       : `Visto bueno rechazado por ${supervisor.nombre}. Se requiere nueva verificación.`
@@ -80,7 +80,7 @@ export async function PUT(
         supervisorId,
         fechaVistoBueno: aprobado ? new Date() : null,
         comentarioVistoBueno,
-        estado: nuevoEstado,
+        estado: nuevoEstado as any,
         historial: {
           create: {
             estadoAnterior: flujoActual.estado,

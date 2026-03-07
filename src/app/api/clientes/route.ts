@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// GET - Fetch clientes
+// GET - Fetch clientes (usuarios con rol de productor o usuarioFaena)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       where.esUsuarioFaena = true
     }
     
-    const clientes = await db.cliente.findMany({
+    const clientes = await db.usuario.findMany({
       where,
       orderBy: { nombre: 'asc' }
     })
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const cliente = await db.cliente.create({
+    const cliente = await db.usuario.create({
       data: {
         nombre,
         cuit: cuit || null,
@@ -83,7 +83,7 @@ export async function PUT(request: NextRequest) {
       )
     }
     
-    const cliente = await db.cliente.update({
+    const cliente = await db.usuario.update({
       where: { id },
       data: {
         nombre,
@@ -122,7 +122,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
     
-    await db.cliente.delete({
+    await db.usuario.delete({
       where: { id }
     })
     

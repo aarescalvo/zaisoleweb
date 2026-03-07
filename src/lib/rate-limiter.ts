@@ -129,6 +129,21 @@ export class RateLimiter {
   }
 
   /**
+   * Registra un intento fallido (incrementa el contador)
+   */
+  recordFailedAttempt(identifier: string): void {
+    this.recordRequest(identifier)
+  }
+
+  /**
+   * Obtiene el número de intentos restantes
+   */
+  getRemainingAttempts(identifier: string): number {
+    const stats = this.getStats(identifier)
+    return stats.remaining
+  }
+
+  /**
    * Resetea el contador para una IP
    */
   reset(identifier: string): void {

@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Validate usuarioFaenaId exists
-      const usuarioFaenaExists = await db.cliente.findUnique({
+      const usuarioFaenaExists = await db.usuario.findUnique({
         where: { id: usuarioFaenaId }
       })
       if (!usuarioFaenaExists) {
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
       // Validate productorId if provided
       let validProductorId: string | undefined = undefined
       if (productorId) {
-        const productorExists = await db.cliente.findUnique({
+        const productorExists = await db.usuario.findUnique({
           where: { id: productorId }
         })
         if (productorExists) {

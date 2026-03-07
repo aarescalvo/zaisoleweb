@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (tropa.animales.length > 0) {
       await db.animal.updateMany({
         where: { tropaId },
-        data: { corral: corralDestino }
+        data: { corralId: corralDestino }
       })
     }
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         accion: 'UPDATE',
         entidad: 'Tropa',
         entidadId: tropaId,
-        descripcion: `Tropa ${tropa.codigo} movida de ${tropa.corral || 'sin corral'} a ${corralDestino}`
+        descripcion: `Tropa ${tropa.codigo} movida de ${tropa.corralId || 'sin corral'} a ${corralDestino}`
       }
     })
 

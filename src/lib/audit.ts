@@ -28,6 +28,11 @@ export async function logAudit(data: AuditLog): Promise<void> {
   });
 }
 
+// Alias for compatibility with SIGICA and other modules
+export async function registrarAuditoria(data: AuditLog): Promise<void> {
+  return logAudit(data);
+}
+
 export async function getAuditLogs(filters: {
   modulo?: string;
   accion?: string;

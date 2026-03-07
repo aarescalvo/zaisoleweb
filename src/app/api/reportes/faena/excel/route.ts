@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ExcelExporter } from '@/lib/export-excel';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener datos de balances de faena
-    const balances = await prisma.balanceFaena.findMany({
+    const balances = await db.balanceFaena.findMany({
       where,
       include: {
         tropa: {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       cantidadAnimales: b.tropa?.cantidadCabezas || 0,
       pesoVivoTotal: b.pesoVivoTotal,
       pesoFrioTotal: b.pesoFrioTotal,
-      rinde: b.rinde,
+      rinde: b.rindePromedio || 0,
       observaciones: b.observaciones || '',
     }));
 

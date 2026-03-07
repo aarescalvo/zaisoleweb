@@ -53,6 +53,7 @@ interface CuentaBancaria {
   banco: string
   numeroCuenta: string
   moneda: string
+  activo?: boolean
 }
 
 interface Props {
@@ -170,7 +171,7 @@ export function Cheques({ operador }: Props) {
     try {
       const res = await fetch(`/api/cheques?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
-        fetchCheques()
+        fetchData()
       }
     } catch (error) {
       console.error('Error al eliminar cheque:', error)
