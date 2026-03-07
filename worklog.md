@@ -303,3 +303,28 @@ Stage Summary:
 - No requiere internet para operar
 - Backups automáticos configurables
 - Documentación detallada incluida
+
+---
+Task ID: 19
+Agent: main
+Task: Agregar configuración de balanzas, impresoras y backup en nube
+
+Work Log:
+- Creados scripts de configuración de cliente:
+  - config-balanza.bat: Configuración de balanzas por puesto
+  - config-impresora.bat: Configuración de impresoras por uso
+  - config-puesto.bat: Configuración completa de puesto (todo en uno)
+- Creado script de backup en la nube:
+  - cloud-backup-setup.bat: Configura Google Drive, OneDrive, Dropbox, NAS o FTP
+  - Soporta múltiples frecuencias (cada hora, diario, semanal)
+  - Retención configurable de backups
+- Actualizada documentación:
+  - INSTALL.md: Guía completa con todos los componentes
+  - PUESTOS.md: Configuración rápida por cada puesto de trabajo
+
+Stage Summary:
+- 8 puestos de trabajo documentados con su configuración específica
+- Balanzas: Detección automática de puertos COM, protocolos configurables
+- Impresoras: Soporte térmicas, láser, inyección, matriciales
+- Backup nube: Google Drive, OneDrive, Dropbox, NAS, FTP
+- Scripts de configuración automática para cada componente
