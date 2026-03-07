@@ -207,3 +207,26 @@ Stage Summary:
 - Documentación completa del sistema
 - Plan de mejoras estructurado en 4 fases
 - Consultas pendientes documentadas
+
+---
+Task ID: 16
+Agent: main
+Task: Implementar configuración de Balanzas e Impresoras
+
+Work Log:
+- Actualizado CONSULTAS_PENDIENTES.md con respuestas del usuario:
+  - Balanzas: se configuran en Configuración → Balanzas
+  - Impresoras: se configuran en Configuración → Impresoras
+  - Numeración tropas: ANUAL
+  - Cierre de faena: Romaneo playa, rendimiento, stock cámaras, SIGICA, despachos
+  - SENASA: planeada a desarrollar
+- Creados modelos Prisma: Balanza, Impresora con enums
+- Creadas APIs: /api/balanzas, /api/impresoras
+- Creados componentes: balanzas.tsx, impresoras.tsx
+- Actualizado configuración/index.tsx con 2 nuevos tabs
+
+Stage Summary:
+- Balanzas: Configuración RS232 completa (puerto, baudios, protocolo, etc.)
+- Impresoras: Configuración de etiquetas (dimensiones, DPI, márgenes, etc.)
+- 10 tabs en módulo Configuración
+- Pendiente: Integrar balanzas/impresoras en módulos operativos

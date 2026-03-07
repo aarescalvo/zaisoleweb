@@ -1,7 +1,7 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Warehouse, UserCheck, Package, Users, Truck, Beef } from 'lucide-react'
+import { Settings, Building2, Warehouse, UserCheck, Package, Users, Truck, Beef, Scale, Printer } from 'lucide-react'
 import { ConfigFrigorifico } from './config-frigorifico'
 import { Corrales } from './corrales'
 import { Camaras } from './camaras'
@@ -10,6 +10,8 @@ import { Productos } from './productos'
 import { Operadores } from './operadores'
 import { Transportistas } from './transportistas'
 import { Clientes } from './clientes'
+import { Balanzas } from './balanzas'
+import { Impresoras } from './impresoras'
 
 interface Operador {
   id: string
@@ -27,7 +29,7 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
         </div>
 
         <Tabs defaultValue="frigorifico" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 gap-1 h-auto">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 gap-1 h-auto">
             <TabsTrigger value="frigorifico" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Building2 className="w-4 h-4" />
               <span className="hidden lg:inline">Frigorífico</span>
@@ -56,6 +58,14 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
               <Truck className="w-4 h-4" />
               <span className="hidden lg:inline">Transp.</span>
             </TabsTrigger>
+            <TabsTrigger value="balanzas" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <Scale className="w-4 h-4" />
+              <span className="hidden lg:inline">Balanzas</span>
+            </TabsTrigger>
+            <TabsTrigger value="impresoras" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <Printer className="w-4 h-4" />
+              <span className="hidden lg:inline">Impres.</span>
+            </TabsTrigger>
             <TabsTrigger value="operadores" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Users className="w-4 h-4" />
               <span className="hidden lg:inline">Operadores</span>
@@ -82,6 +92,12 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
           </TabsContent>
           <TabsContent value="transportistas">
             <Transportistas operador={operador} />
+          </TabsContent>
+          <TabsContent value="balanzas">
+            <Balanzas operador={operador} />
+          </TabsContent>
+          <TabsContent value="impresoras">
+            <Impresoras operador={operador} />
           </TabsContent>
           <TabsContent value="operadores">
             <Operadores operador={operador} />

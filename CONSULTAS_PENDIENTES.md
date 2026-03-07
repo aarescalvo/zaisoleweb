@@ -117,7 +117,57 @@ Cámara 3 (FAENA): 30 animales - ¿OK?
 
 ## ✅ RESPUESTAS RECIBIDAS
 
-### (Se irán completando con las respuestas del usuario)
+### 1. Balanza RS232 ✓
+**Respuesta:** Se configura en Configuración → Balanzas
+**Implementación:** Crear tab de configuración de balanzas con:
+- Puerto COM (ej: COM1, COM3, /dev/ttyUSB0)
+- Baudios (9600, 19200, etc.)
+- Protocolo (continuo, bajo demanda)
+- Nombre descriptivo
+- Activo/Inactivo
+
+### 2. Impresión de Rótulos ✓
+**Respuesta:** Se configura en Configuración → Impresoras
+**Implementación:** Crear tab de configuración de impresoras con:
+- Nombre de impresora
+- Tipo (Térmica, Inyección, etc.)
+- Ancho de etiqueta (mm)
+- Alto de etiqueta (mm)
+- Margen superior (mm)
+- Margen izquierdo (mm)
+- DPI
+- Activa/Inactiva
+
+### 3. Numeración de Tropas ✓
+**Respuesta:** ANUAL - Formato {ESPECIE}{AÑO}{SECUENCIAL}
+**Confirmado:** B20260001, B20260002... se reinicia cada año
+
+### 4. Cierre de Faena ✓
+**Respuesta:** Al cerrar una faena se generan:
+1. **Romaneo de playa** - Resumen de medias pesadas
+2. **Rendimiento por tropa** - Cálculo de kg gancho / peso vivo
+3. **Generación stock cámaras** - Actualiza StockMediaRes
+4. **Reportes a SIGICA** - Exportación para sistema oficial
+5. **Stocks para despachos** - Prepara mercadería para entrega
+
+**Flujo de cierre:**
+```
+Cerrar Lista Faena
+       ↓
+Generar Romaneo de Playa (PDF)
+       ↓
+Calcular Rendimiento por Tropa
+       ↓
+Actualizar Stock en Cámaras
+       ↓
+Generar archivo SIGICA
+       ↓
+Actualizar Stocks para Despacho
+```
+
+### 5. Integración SENASA ✓
+**Respuesta:** Está planeada a desarrollar
+**Estado:** Pendiente - Futura implementación
 
 ---
 

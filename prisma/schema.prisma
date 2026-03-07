@@ -1060,3 +1060,100 @@ enum TipoProductoFactura {
   MENUDENCIA        // Menudencias
   OTRO              // Otros productos
 }
+
+// ==================== BALANZAS ====================
+
+model Balanza {
+  id              String        @id @default(cuid())
+  nombre          String        // "Balanza Camiones", "Balanza Romaneo", etc.
+  descripcion     String?
+
+  // Configuración RS232
+  puerto          String        // COM1, COM3, /dev/ttyUSB0, etc.
+  baudios         Int           @default(9600)
+  dataBits        Int           @default(8)
+  stopBits        Int           @default(1)
+  paridad         String        @default("none")  // none, odd, even
+
+  // Protocolo
+  protocolo       ProtocoloBalanza @default(CONTINUO)
+  comandoPeso     String?       // Comando para solicitar peso (si es bajo demanda)
+  formatoTrama    String?       // Formato de la trama recibida
+
+  // Configuración de lectura
+  tiempoEstabilidad Int         @default(2000)  // ms para considerar estable
+  decimales       Int           @default(1)     // Cantidad de decimales
+
+  // Uso
+  uso             UsoBalanza    @default(CAMIONES)
+
+  // Estado
+  activa          Boolean       @default(true)
+  ultimaConexion  DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum ProtocoloBalanza {
+  CONTINUO        // Envía peso constantemente
+  BAJO_DEMANDA    // Responde solo cuando se solicita
+}
+
+enum UsoBalanza {
+  CAMIONES        // Balanza de camiones
+  ROMANEO         // Balanza de romaneo/playa
+  INDIVIDUAL      // Balanza de pesaje individual
+  MENUDENCIAS     // Balanza de menudencias
+}
+
+// ==================== IMPRESORAS ====================
+
+model Impresora {
+  id              String        @id @default(cuid())
+  nombre          String        // "Impresora Rótulos", "Impresora Tickets", etc.
+  descripcion     String?
+
+  // Configuración de impresora
+  tipo            TipoImpresora @default(TERMICA)
+  modelo          String?       // Modelo específico
+  direccion       String?       // IP, puerto, o nombre de impresora compartida
+
+  // Dimensiones de etiqueta (mm)
+  anchoEtiqueta   Int           @default(100)
+  altoEtiqueta    Int           @default(50)
+  margenSuperior  Int           @default(2)
+  margenIzquierdo Int           @default(2)
+  margenDerecho   Int           @default(2)
+  margenInferior  Int           @default(2)
+
+  // Configuración de impresión
+  dpi             Int           @default(203)
+  velocidad       Int           @default(2)  // pulgadas/segundo
+  densidad        Int           @default(8)  // nivel de oscuridad
+
+  // Uso
+  uso             UsoImpresora  @default(ROTULOS)
+
+  // Estado
+  activa          Boolean       @default(true)
+  porDefecto      Boolean       @default(false)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum TipoImpresora {
+  TERMICA         // Impresora térmica de etiquetas
+  INYECCION       // Impresora de inyección de tinta
+  LASER           // Impresora láser
+  MATRICIAL       // Impresora matricial
+  TERMICA_TICKET  // Impresora térmica de tickets
+}
+
+enum UsoImpresora {
+  ROTULOS         // Rótulos de medias res
+  TICKETS         // Tickets de pesaje
+  FACTURAS        // Facturas y remitos
+  REPORTES        // Reportes generales
+}
