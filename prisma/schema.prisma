@@ -67,6 +67,7 @@ model Camara {
   movimientosDestino  MovimientoCamara[]  @relation("CamaraDestino")
   stockMedias         StockMediaRes[]
   mediasRes           MediaRes[]
+  stockSIGICA         StockCamaraSIGICA?
 }
 
 enum TipoCamara {
@@ -231,6 +232,14 @@ model Operador {
   sesiones             Sesion[]
   intentosLogin        IntentoLogin[]
   ipsBloqueadas        IpBloqueada[]
+  
+  // Relaciones para Flujo Faena
+  flujosVerificados    FlujoFaena[]    @relation("VerificadorFlujo")
+  flujosSupervisados   FlujoFaena[]    @relation("SupervisorFlujo")
+  historialFlujos      HistorialFlujoFaena[]
+  
+  // SIGICA
+  enviosSIGICA         EnvioSIGICA[]
 }
 
 enum RolOperador {
@@ -681,6 +690,7 @@ model ListaFaena {
   
   tropas        ListaFaenaTropa[]
   asignaciones  AsignacionGarron[]
+  flujoFaena    FlujoFaena?
   
   @@index([fecha])
   @@index([estado])
@@ -1221,6 +1231,12 @@ model Factura {
   tipoComprobante   Int?          // 1=FA, 6=FB, 11=FC, etc.
   puntoVenta        Int?          // Punto de venta AFIP
   numeroAfip        Int?          // Número de comprobante en AFIP
+  
+  // Moneda y cotización
+  monedaId          String?
+  moneda            Moneda?       @relation(fields: [monedaId], references: [id])
+  cotizacionId      String?       // ID de la cotización al momento de la factura
+  cotizacion        Float?        // Cotización usada (valor denormalizado para histórico)
   
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -2035,6 +2051,12 @@ model Pago {
   // Monto
   monto           Float
   
+  // Moneda y cotización
+  monedaId        String?
+  moneda          Moneda?       @relation(fields: [monedaId], references: [id])
+  cotizacionId    String?       // ID de la cotización al momento del pago
+  cotizacion      Float?        // Cotización usada (valor denormalizado para histórico)
+  
   // Cheque (si aplica)
   chequeId        String?
   cheque          Cheque?       @relation(fields: [chequeId], references: [id])
@@ -2513,4 +2535,208 @@ model DetalleConciliacion {
   
   @@index([conciliacionId])
   @@index([estado])
+}
+
+// ==================== FLUJO DE FAENA CON SUPERVISOR ====================
+
+enum EstadoFlujoFaena {
+  INICIADO              // Faena en proceso
+  VERIFICACION          // En verificación de datos
+  PENDIENTE_VISTO_BUENO // Esperando supervisor
+  CONFIRMADO            // Visto bueno otorgado
+  DATOS_SUBIDOS         // Datos subidos al sistema
+  REPORTES_EMITIDOS     // Reportes generados
+  ROMANEOS_ENVIADOS     // Romaneos enviados a clientes
+  COMPLETADO            // Flujo completo
+  ANULADO               // Anulado
+}
+
+model FlujoFaena {
+  id                String          @id @default(cuid())
+  fecha             DateTime        @default(now())
+  listaFaenaId      String          @unique
+  listaFaena        ListaFaena      @relation(fields: [listaFaenaId], references: [id])
+  
+  // Estados del flujo
+  estado            EstadoFlujoFaena @default(INICIADO)
+  
+  // Verificación de datos
+  datosVerificados  Boolean         @default(false)
+  verificadorId     String?
+  verificador       Operador?       @relation("VerificadorFlujo", fields: [verificadorId], references: [id])
+  fechaVerificacion DateTime?
+  
+  // Confirmación de supervisor (Visto Bueno)
+  vistoBueno        Boolean         @default(false)
+  supervisorId      String?
+  supervisor        Operador?       @relation("SupervisorFlujo", fields: [supervisorId], references: [id])
+  fechaVistoBueno   DateTime?
+  comentarioVistoBueno String?
+  
+  // Subida de datos
+  datosSubidos      Boolean         @default(false)
+  fechaSubida       DateTime?
+  
+  // Reportes y envío
+  reportesEmitidos  Boolean         @default(false)
+  fechaReportes     DateTime?
+  romaneosEnviados  Boolean         @default(false)
+  fechaEnvioRomaneos DateTime?
+  
+  // Observaciones
+  observaciones     String?
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  historial         HistorialFlujoFaena[]
+  
+  @@index([estado])
+  @@index([fecha])
+}
+
+// Historial de cambios de estado
+model HistorialFlujoFaena {
+  id            String   @id @default(cuid())
+  flujoFaenaId  String
+  flujoFaena    FlujoFaena @relation(fields: [flujoFaenaId], references: [id])
+  
+  estadoAnterior  String?
+  estadoNuevo     String
+  observaciones   String?
+  
+  operadorId    String?
+  operador      Operador? @relation(fields: [operadorId], references: [id])
+  fecha         DateTime @default(now())
+  
+  @@index([flujoFaenaId])
+}
+
+// ==================== MONEDAS Y COTIZACIONES ====================
+
+model Moneda {
+  id            String   @id @default(cuid())
+  codigo        String   @unique // ARS, USD, EUR
+  nombre        String   // Peso Argentino, Dólar Estadounidense, Euro
+  simbolo       String   // $, US$, €
+  esDefault     Boolean  @default(false)
+  activa        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  cotizaciones  Cotizacion[]
+  facturas      Factura[]
+  pagos         Pago[]
+}
+
+model Cotizacion {
+  id            String   @id @default(cuid())
+  monedaId      String
+  moneda        Moneda   @relation(fields: [monedaId], references: [id])
+  fecha         DateTime @default(now())
+  compra        Float    // Precio de compra
+  venta         Float    // Precio de venta
+  fuente        String?  // BCRA, Banco, Manual
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([monedaId, fecha])
+}
+
+// ==================== INTEGRACIÓN SIGICA ====================
+// SIGICA: Sistema de Gestión de la Industria Cárnica Argentina
+// Sistema oficial del SENASA para plantas faenadoras
+
+model ConfiguracionSIGICA {
+  id                String   @id @default(cuid())
+  habilitado        Boolean  @default(false)
+  urlServicio       String?  // URL del servicio SIGICA (homologación/producción)
+  usuario           String?  // Usuario SIGICA
+  password          String?  // Encriptado
+  certificado       String?  // Ruta al certificado digital
+  establecimiento   String?  // N° de establecimiento habilitado por SENASA
+  ultimaSincronizacion DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Registro de envíos a SIGICA
+model EnvioSIGICA {
+  id              String          @id @default(cuid())
+  tipo            TipoEnvioSIGICA
+  fechaEnvio      DateTime        @default(now())
+  
+  // Datos enviados
+  datosEnviados   String          // JSON con los datos completos
+  cantidadRegistros Int           @default(0)
+  
+  // Respuesta
+  estado          EstadoEnvioSIGICA @default(PENDIENTE)
+  respuestaSIGICA String?         // JSON con la respuesta
+  codigoTransaccion String?       // Código de transacción SIGICA
+  mensajeError    String?
+  
+  // Referencias
+  romaneoIds      String?         // IDs de romaneos enviados (JSON array)
+  
+  // Reintentos
+  intentos        Int             @default(0)
+  ultimoIntento   DateTime?
+  
+  operadorId      String?
+  operador        Operador?       @relation(fields: [operadorId], references: [id])
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([tipo])
+  @@index([estado])
+  @@index([fechaEnvio])
+}
+
+enum TipoEnvioSIGICA {
+  ROMANEO          // Envío de romaneo/faena
+  STOCK_CAMARA     // Actualización de stock
+  MOVIMIENTO       // Movimiento de mercadería
+  DESPACHO         // Despacho de productos
+}
+
+enum EstadoEnvioSIGICA {
+  PENDIENTE
+  ENVIANDO
+  EXITOSO
+  ERROR
+  REINTENTAR
+}
+
+// Stock de Cámara para SIGICA
+model StockCamaraSIGICA {
+  id            String   @id @default(cuid())
+  camaraId      String
+  camara        Camara   @relation(fields: [camaraId], references: [id])
+  
+  // Datos para SIGICA
+  codigoSIGICA  String?  // Código asignado por SIGICA
+  ultimaActualizacion DateTime @default(now())
+  
+  // Totales
+  totalMedias   Int      @default(0)
+  totalKg       Float    @default(0)
+  
+  // Por especie
+  bovinosMedias Int      @default(0)
+  bovinosKg     Float    @default(0)
+  equinosMedias Int      @default(0)
+  equinosKg     Float    @default(0)
+  
+  // Remanentes (productos que quedaron de procesamientos anteriores)
+  remanenteKg   Float    @default(0)
+  
+  sincronizado  Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([camaraId])
 }

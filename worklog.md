@@ -187,6 +187,426 @@ Stage Summary:
 14. Configuración (26 tabs)
 
 ---
+## Task ID: 1 - general-purpose
+### Work Task
+Create a mini-service for Torres scale RS232 communication in `/home/z/my-project/mini-services/balanza-service/`
+
+### Work Summary
+Created a complete standalone Bun service for real-time weight reading from Torres brand scales via RS232 serial port.
+
+**Files Created:**
+```
+mini-services/balanza-service/
+├── package.json      # Dependencies: serialport, ws
+├── tsconfig.json     # TypeScript configuration
+├── index.ts          # Main service (~700 lines)
+├── README.md         # Documentation
+└── bun.lock          # Lock file
+```
+
+**Key Implementation Details:**
+
+1. **WebSocket Server (Port 3010)**
+   - Real-time weight updates to connected clients
+   - Client subscription system per scale
+   - Auto-sends initial state on connection
+
+2. **Serial Port Management**
+   - Uses `serialport` library for RS232 communication
+   - Supports COM ports (Windows) and /dev/ttyUSB* (Linux)
+   - Configurable baud rate, data bits, stop bits, parity
+   - Auto-reconnection on errors (5 second delay)
+
+3. **Torres Scale Protocol Parser**
+   - Handles STX + weight + ETX format
+   - Supports continuous streaming with CR/LF delimiters
+   - Parses status format: `ST,GS,+12.345,kg`
+   - Multiple pattern matching fallbacks
+
+4. **Weight Stability Detection**
+   - Buffers last 10 readings
+   - Detects stability when 5 consecutive readings within 20g
+   - Flags stable readings for client use
+
+5. **HTTP API Endpoints**
+   - `GET/POST /scales` - List/add scales
+   - `PUT/DELETE /scales/:id` - Update/remove scales
+   - `GET /readings` - Current readings
+   - `GET /ports` - List available serial ports
+   - `GET /status` - System status
+   - `POST /scales/:id/connect|disconnect` - Connection control
+
+6. **Error Handling**
+   - Graceful shutdown on SIGTERM/SIGINT
+   - Error broadcasts to WebSocket clients
+   - Connection status tracking per scale
+
+**Usage:**
+```bash
+cd mini-services/balanza-service
+bun run start    # Production
+bun run dev      # Development with reload
+```
+
+**Integration:**
+Connect to `ws://localhost:3010` and subscribe to scale updates via WebSocket messages.
+
+---
 *Worklog actualizado: Marzo 2026*
 *Repositorio: https://github.com/aarescalvo/zaisoleweb*
 *Commit: 30c30e4*
+
+---
+## Task ID: 2 - full-stack-developer
+### Work Task
+Implement a complete Faena (slaughter) workflow module with supervisor confirmation in the Next.js project.
+
+### Work Summary
+Created a complete workflow system for Faena process with supervisor approval (visto bueno) capability.
+
+**Workflow Implemented:**
+Faena ends → Data verification → Supervisor confirms "visto bueno" → Data upload → Reports emission → Romaneos sending
+
+**Files Created:**
+
+**1. Prisma Schema Updates (`prisma/schema.prisma`):**
+- Added `EstadoFlujoFaena` enum with 9 states
+- Added `FlujoFaena` model with full workflow tracking
+- Added `HistorialFlujoFaena` model for state change tracking
+- Updated `ListaFaena` model with `flujoFaena` relation
+- Updated `Operador` model with workflow relations
+
+**2. API Endpoints:**
+- `/api/flujo-faena/route.ts` - Main CRUD operations (GET, POST, PUT, DELETE)
+- `/api/flujo-faena/[id]/verificar/route.ts` - Mark data as verified
+- `/api/flujo-faena/[id]/visto-bueno/route.ts` - Supervisor approval with role validation
+- `/api/flujo-faena/[id]/subir-datos/route.ts` - Mark data as uploaded
+- `/api/flujo-faena/[id]/emitir-reportes/route.ts` - Generate reports
+- `/api/flujo-faena/[id]/enviar-romaneos/route.ts` - Send romaneos to clients
+
+**3. React Components:**
+- `flujo-faena-list.tsx` - List view with status badges, filters, and progress indicators
+- `flujo-faena-detail.tsx` - Detail view with action buttons for each workflow stage
+- `flujo-faena-timeline.tsx` - Visual timeline of workflow state changes
+- `supervisor-approval-dialog.tsx` - PIN-based supervisor authentication dialog
+
+**Key Features:**
+- Complete state machine with 9 states (INICIADO → COMPLETADO)
+- Automatic history tracking for all state changes
+- Role-based access control (only SUPERVISOR/ADMIN can approve)
+- PIN authentication for supervisor actions
+- Visual progress indicators showing workflow completion percentage
+- Real-time state validation before transitions
+- Support for observations/comments at each stage
+
+**Database Changes:**
+- Successfully ran `bun run db:push`
+- Added 2 new models: FlujoFaena, HistorialFlujoFaena
+- Added 1 new enum: EstadoFlujoFaena
+- Updated relations on ListaFaena and Operador models
+
+---
+*Worklog actualizado: Marzo 2026*
+
+---
+## Task ID: 3 - full-stack-developer
+### Work Task
+Implement SIGICA integration module for romaneo loading and camera stock management in the Argentine sanitary system for meat processing plants.
+
+### Work Summary
+The SIGICA module was already partially implemented. Verified and completed the integration with the following components:
+
+**Database Models (Already in Schema):**
+```prisma
+model ConfiguracionSIGICA {
+  id                String   @id @default(cuid())
+  habilitado        Boolean  @default(false)
+  urlServicio       String?
+  usuario           String?
+  password          String?
+  certificado       String?
+  establecimiento   String?
+  ultimaSincronizacion DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model EnvioSIGICA {
+  id              String   @id @default(cuid())
+  tipo            String   // ROMANEO, STOCK_CAMARA, MOVIMIENTO, DESPACHO
+  fechaEnvio      DateTime @default(now())
+  datosEnviados   String   // JSON
+  cantidadRegistros Int    @default(0)
+  estado          String   @default("PENDIENTE")
+  respuestaSIGICA String?
+  codigoTransaccion String?
+  mensajeError    String?
+  romaneoIds      String?
+  intentos        Int      @default(0)
+  ultimoIntento   DateTime?
+  operadorId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model StockCamaraSIGICA {
+  id            String   @id @default(cuid())
+  camaraId      String   @unique
+  codigoSIGICA  String?
+  totalMedias   Int      @default(0)
+  totalKg       Float    @default(0)
+  bovinosMedias Int      @default(0)
+  bovinosKg     Float    @default(0)
+  equinosMedias Int      @default(0)
+  equinosKg     Float    @default(0)
+  remanenteKg   Float    @default(0)
+  sincronizado  Boolean  @default(false)
+  ultimaActualizacion DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+```
+
+**API Endpoints:**
+1. `/api/sigica/config/route.ts` - GET/PUT for SIGICA configuration
+2. `/api/sigica/envios/route.ts` - GET list, POST to send new shipments
+3. `/api/sigica/envios/[id]/route.ts` - GET details, DELETE (newly created)
+4. `/api/sigica/enviar-romaneos/route.ts` - Send romaneos to SIGICA
+5. `/api/sigica/actualizar-stock/route.ts` - Update camera stock
+6. `/api/sigica/reintentar/route.ts` - Retry failed shipments
+
+**Service Class (`/src/lib/sigica.ts`):**
+- `SIGICAService` class with SOAP XML generation
+- Methods: `enviarRomaneos`, `actualizarStockCamara`, `reintentarEnvio`
+- XML generators for romaneo and stock cámara
+- Connection testing and configuration management
+
+**React Components:**
+- `sigica-config.tsx` - Configuration form with connection testing
+- `sigica-envios-list.tsx` - Shipment history list with filters
+- `sigica-status-card.tsx` - Connection status display
+- `enviar-romaneos-dialog.tsx` - Dialog for sending romaneos
+
+**Key Features:**
+- Integration with SENASA SIGICA system (homologation and production URLs)
+- SOAP/XML communication with authentication
+- Automatic retry system (max 3 attempts)
+- Shipment status tracking (PENDIENTE, ENVIANDO, EXITOSO, ERROR, REINTENTAR)
+- Species differentiation (BOVINO, EQUINO)
+- Camera stock synchronization
+- Full audit trail of all shipments
+
+**Database Sync:**
+- Ran `bun run db:push` successfully
+- Database already in sync with schema
+
+**Files Created/Modified:**
+- `/src/app/api/sigica/envios/[id]/route.ts` (NEW - GET details, DELETE)
+- `/src/app/api/sigica/envios/route.ts` (MODIFIED - Added POST method)
+
+---
+## Task ID: 4 - full-stack-developer
+### Work Task
+Implement multi-currency support (ARS, USD, EUR) for the frigorífico system.
+
+### Work Summary
+Created a complete multi-currency system with support for Argentine Pesos (ARS), US Dollars (USD), and Euros (EUR), including automatic BCRA rate fetching and manual quotation management.
+
+**Database Models Added (`prisma/schema.prisma`):**
+```prisma
+model Moneda {
+  id            String   @id @default(cuid())
+  codigo        String   @unique // ARS, USD, EUR
+  nombre        String   // Peso Argentino, Dólar Estadounidense, Euro
+  simbolo       String   // $, US$, €
+  esDefault     Boolean  @default(false)
+  activa        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  cotizaciones  Cotizacion[]
+  facturas      Factura[]
+  pagos         Pago[]
+}
+
+model Cotizacion {
+  id            String   @id @default(cuid())
+  monedaId      String
+  moneda        Moneda   @relation(fields: [monedaId], references: [id])
+  fecha         DateTime @default(now())
+  compra        Float    // Precio de compra
+  venta         Float    // Precio de venta
+  fuente        String?  // BCRA, Banco, Manual
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([monedaId, fecha])
+}
+```
+
+**Updated Models:**
+- `Factura`: Added `monedaId`, `cotizacionId`, `cotizacion` fields
+- `Pago`: Added `monedaId`, `cotizacionId`, `cotizacion` fields
+
+**Files Created:**
+
+1. **Library (`/src/lib/moneda.ts`):**
+   - Currency formatting functions (`formatearMonto`, `formatearARS`, `formatearUSD`, `formatearEUR`)
+   - Currency conversion functions (`convertirMoneda`, `convertirAARS`, `convertirDeARS`)
+   - BCRA API integration (`obtenerCotizacionBCRA`, `obtenerCotizacionesMultiples`)
+   - Database helpers (`obtenerMonedaDefault`, `obtenerCotizacionActual`, `guardarCotizacion`, `actualizarCotizacionDia`)
+   - Default currency seeding (`seedMonedasDefault`)
+   - Utilities (`parsearMonto`, `obtenerSimboloMoneda`, `obtenerNombreMoneda`)
+
+2. **API Endpoints:**
+   - `/api/monedas/route.ts` - Full CRUD for currencies (GET, POST, PUT, DELETE)
+   - `/api/cotizaciones/route.ts` - Quotation management (GET, POST, PUT, DELETE)
+   - `/api/cotizaciones/actual/route.ts` - Current rates and BCRA sync (GET, POST)
+
+3. **React Components:**
+   - `monedas-config.tsx` - Currency configuration with default setting, activation/deactivation
+   - `cotizaciones-config.tsx` - Quotation display with cards for each currency, BCRA sync button, history table
+
+4. **Configuration Tab Integration:**
+   - Updated `/src/components/configuracion/index.tsx` with new "Monedas" and "Cotizaciones" tabs
+   - Added Coins and TrendingUp icons for the tabs
+
+**Key Features:**
+- Default currencies seeded automatically (ARS, USD, EUR)
+- ARS set as default currency
+- Automatic BCRA rate fetching with fallback to manual entry
+- Buy/Sell rate distinction for accurate conversions
+- Rate source tracking (BCRA, Manual, Bank, Mayorista)
+- Historical quotation records with full audit trail
+- Currency selection for invoices and payments
+- Denormalized quotation value stored with each invoice/payment for historical accuracy
+
+**Database Sync:**
+- Ran `bun run db:push` successfully
+- Database already in sync with schema
+
+**Configuration Tabs:**
+- Added 2 new tabs in the Finance section (28 total tabs now):
+  - "Monedas" - Currency management
+  - "Cotizaciones" - Exchange rate management
+
+---
+## Task ID: 5 - Main Agent
+### Work Task
+Implement Code 128 barcode generation for labels and products.
+
+### Work Summary
+Created a complete Code 128 barcode generation system with support for multiple formats and print-ready label generation.
+
+**Files Created:**
+
+1. **Library (`/src/lib/barcode.ts`):**
+   - `generateBarcodeSVG` - Generate SVG barcode
+   - `generateBarcodeDataURL` - Generate PNG data URL
+   - `generateBarcodePNG` - Generate PNG buffer
+   - `generateEAN128Code` - EAN-128/GS1-128 format with AI
+   - `generateMediaResBarcode` - Barcode for half carcass (TROPA-GARRON-LADO)
+   - `generateProductoEAN128` - Product barcode with GTIN, lot, expiry, weight
+   - `validateBarcode` - Code 128 validation
+   - `generateBatchBarcodes` - Batch generation for printing
+   - `generatePrintSheet` - HTML print sheet with multiple barcodes
+
+2. **API Endpoint (`/src/app/api/barcode/route.ts`):**
+   - GET: Generate single barcode (PNG or SVG)
+   - POST: Batch generate multiple barcodes
+
+3. **React Components:**
+   - `barcode-generator.tsx` - Interactive barcode generator with format selection
+   - `barcode-preview.tsx` - Reusable barcode preview component
+   - `barcode-print.tsx` - Print-ready label sheet generator
+
+**Key Features:**
+- Code 128, EAN-13, EAN-8, UPC support
+- Server-side and client-side generation
+- Weight embedding in EAN-128 format
+- Batch printing support
+- Media res specific barcodes (TROPA-GARRON-LADO format)
+- Print sheet HTML generation
+
+**Dependencies Added:**
+- jsbarcode@3.12.3
+
+---
+## Task ID: 6 - Main Agent
+### Work Task
+Create Puente Web module for unified AFIP and SIGICA integration.
+
+### Work Summary
+Created a unified bridge service for seamless integration with AFIP (electronic invoicing) and SIGICA (sanitary traceability).
+
+**Files Created:**
+
+1. **Library (`/src/lib/puente-web.ts`):**
+   - `PuenteWebService` class with unified interface
+   - `getEstado` - Connection status for both services
+   - `sincronizarTodo` - Sync with both services
+   - `sincronizarAFIP` - AFIP-specific sync
+   - `sincronizarSIGICA` - SIGICA-specific sync
+   - `procesarFlujoPostFaena` - Complete post-faena workflow
+   - `probarConexion` - Connection testing
+
+2. **API Endpoints:**
+   - `/api/puente-web/estado/route.ts` - GET status and connection test
+   - `/api/puente-web/sincronizar/route.ts` - POST to sync services
+   - `/api/puente-web/procesar-faena/route.ts` - POST complete workflow
+
+3. **React Component:**
+   - `puente-web-status.tsx` - Status dashboard with sync buttons
+
+**Key Features:**
+- Unified status dashboard for AFIP and SIGICA
+- One-click synchronization
+- Complete post-faena workflow automation
+- Real-time connection status
+- Error tracking and reporting
+
+**Workflow Implemented:**
+1. Obtain faena data
+2. Send romaneo to SIGICA
+3. Generate AFIP invoices
+4. Send romeneos to clients via email
+
+---
+## ESTADÍSTICAS ACTUALIZADAS
+
+| Métrica | Valor |
+|---------|-------|
+| Archivos TypeScript/React | 270+ |
+| Modelos Prisma | 75+ |
+| APIs REST | 80+ |
+| Componentes UI | 130+ |
+| Mini-services | 1 (Balanza RS232) |
+| Líneas de código | 60,000+ |
+
+---
+## MÓDULOS IMPLEMENTADOS (Actualizado)
+
+| # | Módulo | Estado | Descripción |
+|---|--------|--------|-------------|
+| 1 | ✅ Insumos y Materiales | 100% | Catálogo, stock, movimientos |
+| 2 | ✅ Centros de Costo | 100% | Sin presupuestos |
+| 3 | ✅ Formas de Pago y Cajas | 100% | Cajas, movimientos, arqueos |
+| 4 | ✅ Cheques y Bancos | 100% | CMF, Macro, Patagonia |
+| 5 | ✅ Pagos y Cobranzas | 100% | Proveedores, clientes, CTAs Ctes |
+| 6 | ✅ Facturación AFIP | 100% | WSAA/WSFE implementados |
+| 7 | ✅ Órdenes de Compra | 100% | Creación, seguimiento |
+| 8 | ✅ Balances y Rendimientos | 100% | Faena, histórico, KPIs |
+| 9 | ✅ Dashboard Ejecutivo | 100% | KPIs, gráficos, alertas |
+| 10 | ✅ Conciliación Bancaria | 100% | Automática, 3 bancos |
+| 11 | ✅ Exportación PDF/Excel | 100% | Todos los reportes |
+| 12 | ✅ Auditoría | 100% | Logs, visor, seguridad |
+| 13 | ✅ Balanzas RS232 | 100% | Torres, WebSocket, tiempo real |
+| 14 | ✅ Flujo Faena Supervisor | 100% | Visto bueno, estados, historial |
+| 15 | ✅ SIGICA | 100% | Romaneos, stock cámaras |
+| 16 | ✅ Multi-moneda | 100% | ARS, USD, EUR, BCRA |
+| 17 | ✅ Código de Barras | 100% | Code 128, EAN-128 |
+| 18 | ✅ Puente Web | 100% | AFIP + SIGICA unificado |
+
+---
+*Worklog actualizado: Marzo 2026 - Sesión Continuada*
+

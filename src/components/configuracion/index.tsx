@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Building2, Warehouse, UserCheck, Package, Users, Truck, Scale, Printer, 
   Leaf, Layers, ShoppingBag, Tags, PackageOpen, ArrowRightLeft, CreditCard, 
-  Wallet, Receipt, Calculator, Building, Banknote, FileKey, History, Shield
+  Wallet, Receipt, Calculator, Building, Banknote, FileKey, History, Shield,
+  Coins, TrendingUp
 } from 'lucide-react'
 import { ConfigFrigorifico } from './config-frigorifico'
 import { Corrales } from './corrales'
@@ -32,6 +33,8 @@ import { Impresoras } from './impresoras'
 import { Operadores } from './operadores'
 import { AFIPConfig } from './afip-config'
 import { AuditoriaConfig } from './auditoria'
+import { MonedasConfig } from './monedas-config'
+import { CotizacionesConfig } from './cotizaciones-config'
 
 interface Operador {
   id: string
@@ -155,6 +158,14 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
               <Banknote className="w-4 h-4" />
               <span className="hidden sm:inline">Cheques</span>
             </TabsTrigger>
+            <TabsTrigger value="monedas" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <Coins className="w-4 h-4" />
+              <span className="hidden sm:inline">Monedas</span>
+            </TabsTrigger>
+            <TabsTrigger value="cotizaciones" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <TrendingUp className="w-4 h-4" />
+              <span className="hidden sm:inline">Cotizaciones</span>
+            </TabsTrigger>
 
             {/* Separador visual */}
             <div className="w-px h-6 bg-stone-300 mx-1 self-center hidden sm:block" />
@@ -263,6 +274,12 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
           </TabsContent>
           <TabsContent value="cheques">
             <Cheques operador={operador} />
+          </TabsContent>
+          <TabsContent value="monedas">
+            <MonedasConfig operador={operador} />
+          </TabsContent>
+          <TabsContent value="cotizaciones">
+            <CotizacionesConfig operador={operador} />
           </TabsContent>
 
           {/* GRUPO: Equipos */}
