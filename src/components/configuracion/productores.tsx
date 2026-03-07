@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Leaf, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Leaf, Plus, Pencil, Trash2 } from 'lucide-react'  // Updated: Farm not available
 
 interface ProductorConsignatario {
   id: string
