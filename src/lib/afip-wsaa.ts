@@ -1,11 +1,15 @@
-// AFIP WSAA - Web Service de Autenticación
+// AFIP WSAA - Web Service de Autenticación y Autorización
 // Referencia: https://www.afip.gob.ar/ws/WSAA/WSAA.HTM
 
 import crypto from 'crypto'
+import { execSync } from 'child_process'
+import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { db } from '@/lib/db'
 
 // URLs de AFIP según ambiente
-const WSAA_URLS = {
+export const WSAA_URLS = {
   testing: 'https://wsaahomo.afip.gov.ar/ws/services/LoginCms',
   production: 'https://wsaa.afip.gov.ar/ws/services/LoginCms'
 }
@@ -17,6 +21,7 @@ interface TokenCache {
   expiration: Date
   cuit: string
   service: string
+  ambiente: string
 }
 
 const tokenCache = new Map<string, TokenCache>()
@@ -40,7 +45,7 @@ export interface TokenAcceso {
 /**
  * Genera el TRA (Ticket de Requerimiento de Acceso) en XML
  */
-function generarTRA(service: string, ttl: number = 43200): string {
+export function generarTRA(service: string, ttl: number = 43200): string {
   const now = new Date()
   const expiration = new Date(now.getTime() + ttl * 1000)
 
@@ -60,49 +65,88 @@ function generarTRA(service: string, ttl: number = 43200): string {
 }
 
 /**
- * Firma el TRA con el certificado y clave privada
+ * Firma el TRA con el certificado y clave privada usando OpenSSL
+ * Genera un CMS (PKCS#7) válido para AFIP
  */
-function firmarTRA(tra: string, certificado: string, clavePrivada: string): string {
-  try {
-    // Crear el signer con la clave privada
-    const signer = crypto.createSign('RSA-SHA1')
-    signer.update(tra)
-    signer.end()
-
-    // Firmar
-    const firma = signer.sign(clavePrivada, 'base64')
-
-    // Crear el CMS (Cryptographic Message Syntax) simplificado
-    // En producción real se usaría una librería como node-forge o pkcs7
-    // Por simplicidad, aquí creamos la estructura básica
-    const cms = crearCMS(tra, firma, certificado)
-
-    return cms
-  } catch (error) {
-    console.error('Error firmando TRA:', error)
-    throw new Error('Error al firmar el TRA. Verifique el certificado y la clave privada.')
+export function firmarTRA(tra: string, certificado: string, clavePrivada: string): string {
+  const tmpDir = join(tmpdir(), 'afip-wsaa')
+  
+  // Ensure tmp directory exists
+  if (!existsSync(tmpDir)) {
+    mkdirSync(tmpDir, { recursive: true })
   }
-}
-
-/**
- * Crea el CMS (PKCS#7) para enviar a AFIP
- */
-function crearCMS(tra: string, firma: string, certificado: string): string {
-  // Extraer el certificado en formato DER
-  const certClean = certificado
-    .replace(/-----BEGIN CERTIFICATE-----/g, '')
-    .replace(/-----END CERTIFICATE-----/g, '')
-    .replace(/\s/g, '')
-
-  // Crear estructura CMS simplificada
-  // NOTA: Esta es una implementación simplificada
-  // En producción se recomienda usar node-forge o similar
-  const traBase64 = Buffer.from(tra).toString('base64')
-
-  // Estructura CMS simplificada
-  const cmsContent = `MIIBBgYJKoZIhvcNAQcCoIIB9zCCAfMCAQExCzAJBgUrDgMCGgUAMCsGCSqGSIb3DQEHAaAuBCwke3RyYX0gJHtkc2lnbmF0dXJlfSAke2NlcnRpZmljYWRvfYIHAoIIBg==${traBase64}${firma}${certClean}`
-
-  return cmsContent
+  
+  const timestamp = Date.now()
+  const traFile = join(tmpDir, `tra_${timestamp}.xml`)
+  const keyFile = join(tmpDir, `key_${timestamp}.pem`)
+  const certFile = join(tmpDir, `cert_${timestamp}.pem`)
+  const cmsFile = join(tmpDir, `cms_${timestamp}.pem`)
+  
+  try {
+    // Write temporary files
+    writeFileSync(traFile, tra, 'utf8')
+    writeFileSync(keyFile, clavePrivada, 'utf8')
+    writeFileSync(certFile, certificado, 'utf8')
+    
+    // Sign with OpenSSL to create PKCS#7
+    // The -outform DER is important: AFIP expects DER format
+    const opensslCmd = [
+      'openssl', 'smime', '-sign',
+      '-signer', certFile,
+      '-inkey', keyFile,
+      '-out', cmsFile,
+      '-in', traFile,
+      '-outform', 'DER',
+      '-nodetach'
+    ].join(' ')
+    
+    try {
+      execSync(opensslCmd, { 
+        encoding: 'utf8',
+        timeout: 30000
+      })
+    } catch (error) {
+      // If OpenSSL fails, try alternative approach
+      console.error('[WSAA] OpenSSL command failed, trying alternative approach:', error)
+      
+      // Try with -binary flag
+      const altCmd = [
+        'openssl', 'smime', '-sign',
+        '-signer', certFile,
+        '-inkey', keyFile,
+        '-out', cmsFile,
+        '-in', traFile,
+        '-outform', 'DER',
+        '-binary'
+      ].join(' ')
+      
+      execSync(altCmd, { 
+        encoding: 'utf8',
+        timeout: 30000
+      })
+    }
+    
+    // Read the signed CMS
+    const { readFileSync } = require('fs')
+    const cmsBuffer = readFileSync(cmsFile)
+    const cmsBase64 = cmsBuffer.toString('base64')
+    
+    return cmsBase64
+    
+  } catch (error) {
+    console.error('[WSAA] Error firmando TRA:', error)
+    throw new Error('Error al firmar el TRA. Verifique el certificado y la clave privada.')
+  } finally {
+    // Clean up temporary files
+    try {
+      if (existsSync(traFile)) unlinkSync(traFile)
+      if (existsSync(keyFile)) unlinkSync(keyFile)
+      if (existsSync(certFile)) unlinkSync(certFile)
+      if (existsSync(cmsFile)) unlinkSync(cmsFile)
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 /**
@@ -131,19 +175,74 @@ function parsearRespuesta(xml: string): { token: string; sign: string; expiratio
 }
 
 /**
+ * Realiza la llamada HTTP al WSAA
+ */
+async function llamarWSAA(cms: string, url: string): Promise<string> {
+  // Crear envelope SOAP
+  const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsaa="https://wsaahomo.afip.gov.ar/ws/services/LoginCms">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <wsaa:loginCms>
+      <wsaa:in0>${cms}</wsaa:in0>
+    </wsaa:loginCms>
+  </soapenv:Body>
+</soapenv:Envelope>`
+
+  console.log(`[WSAA] Llamando a ${url}...`)
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      'SOAPAction': 'https://wsaahomo.afip.gov.ar/ws/services/LoginCms',
+      'User-Agent': 'AFIP-WS-Client/1.0'
+    },
+    body: soapEnvelope
+  })
+
+  if (!response.ok) {
+    throw new Error(`Error HTTP: ${response.status}`)
+  }
+
+  const responseText = await response.text()
+
+  // Verificar fault
+  if (responseText.includes('<faultstring>')) {
+    const faultMatch = responseText.match(/<faultstring>([^<]+)<\/faultstring>/)
+    const faultCode = responseText.match(/<faultcode>([^<]+)<\/faultcode>/)
+    throw new Error(`Error AFIP: ${faultMatch ? faultMatch[1] : 'Error desconocido'} (${faultCode ? faultCode[1] : 'sin código'})`)
+  }
+
+  // Verificar error específico de AFIP
+  if (responseText.includes('<Err>')) {
+    const errCodeMatch = responseText.match(/<Code>(\d+)<\/Code>/)
+    const errMsgMatch = responseText.match(/<Msg>([^<]+)<\/Msg>/)
+    throw new Error(`Error AFIP ${errCodeMatch ? errCodeMatch[1] : ''}: ${errMsgMatch ? errMsgMatch[1] : 'Error desconocido'}`)
+  }
+
+  return responseText
+}
+
+/**
  * Obtiene un token de acceso del WSAA
  * Usa cache para evitar solicitudes innecesarias (el token dura 12 horas)
  */
 export async function obtenerTokenAcceso(
   service: string = 'wsfe',
-  config: WSAAConfig
+  config?: WSAAConfig
 ): Promise<TokenAcceso> {
-  const cacheKey = `${config.cuit}-${service}-${config.ambiente}`
+  // Si no se proporciona config, obtenerlo de la base de datos
+  const cfg = config || await getConfiguracionAFIP()
+  if (!cfg) {
+    throw new Error('Configuración AFIP no disponible. Configure los certificados primero.')
+  }
 
-  // Verificar cache
+  const cacheKey = `${cfg.cuit}-${service}-${cfg.ambiente}`
+
+  // Verificar cache (token válido por más de 10 minutos)
   const cached = tokenCache.get(cacheKey)
-  if (cached && cached.expiration > new Date(Date.now() + 5 * 60 * 1000)) {
-    // Token válido por más de 5 minutos
+  if (cached && cached.expiration > new Date(Date.now() + 10 * 60 * 1000)) {
     console.log(`[WSAA] Usando token en cache para ${service}`)
     return {
       token: cached.token,
@@ -159,58 +258,45 @@ export async function obtenerTokenAcceso(
   const tra = generarTRA(service)
 
   // Firmar TRA
-  const cms = firmarTRA(tra, config.certificado, config.clavePrivada)
+  const cms = firmarTRA(tra, cfg.certificado, cfg.clavePrivada)
 
   // Enviar a AFIP
-  const url = WSAA_URLS[config.ambiente]
+  const url = WSAA_URLS[cfg.ambiente]
+  const responseText = await llamarWSAA(cms, url)
 
+  // Parsear respuesta
+  const { token, sign, expiration } = parsearRespuesta(responseText)
+
+  // Guardar en cache
+  tokenCache.set(cacheKey, {
+    token,
+    sign,
+    expiration,
+    cuit: cfg.cuit,
+    service,
+    ambiente: cfg.ambiente
+  })
+
+  // Actualizar fecha de último token en BD
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'SOAPAction': ''
-      },
-      body: new URLSearchParams({
-        in0: cms
-      }).toString()
-    })
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`)
+    const afipConfig = await db.aFIPConfig.findFirst()
+    if (afipConfig) {
+      await db.aFIPConfig.update({
+        where: { id: afipConfig.id },
+        data: { ultimoToken: new Date() }
+      })
     }
+  } catch (e) {
+    // Ignore errors updating last token date
+  }
 
-    const responseText = await response.text()
+  console.log(`[WSAA] Token obtenido correctamente. Vence: ${expiration.toISOString()}`)
 
-    // Verificar errores en la respuesta
-    if (responseText.includes('<faultstring>')) {
-      const errorMatch = responseText.match(/<faultstring>([^<]+)<\/faultstring>/)
-      throw new Error(errorMatch ? errorMatch[1] : 'Error desconocido de AFIP')
-    }
-
-    // Parsear respuesta
-    const { token, sign, expiration } = parsearRespuesta(responseText)
-
-    // Guardar en cache
-    tokenCache.set(cacheKey, {
-      token,
-      sign,
-      expiration,
-      cuit: config.cuit,
-      service
-    })
-
-    console.log(`[WSAA] Token obtenido correctamente. Vence: ${expiration.toISOString()}`)
-
-    return {
-      token,
-      sign,
-      expiration,
-      generationTime: new Date()
-    }
-  } catch (error) {
-    console.error('[WSAA] Error obteniendo token:', error)
-    throw error
+  return {
+    token,
+    sign,
+    expiration,
+    generationTime: new Date()
   }
 }
 
@@ -225,7 +311,6 @@ export async function getConfiguracionAFIP(): Promise<WSAAConfig | null> {
   }
 
   // Obtener certificados de la configuración
-  // Los certificados se guardan en una tabla separada o en archivos
   const certificados = await db.aFIPConfig.findFirst()
 
   if (!certificados || !certificados.certificado || !certificados.clavePrivada) {
@@ -281,6 +366,16 @@ export async function verificarConfiguracionAFIP(): Promise<{
     errores.push('Falta configurar el punto de venta')
   }
 
+  // Verificar si el certificado está por vencer
+  if (afipConfig.fechaVencimiento) {
+    const diasParaVencer = Math.ceil(
+      (afipConfig.fechaVencimiento.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    )
+    if (diasParaVencer < 30) {
+      errores.push(`El certificado vence en ${diasParaVencer} días. Renueve el certificado.`)
+    }
+  }
+
   return {
     configurado: errores.length === 0,
     errores
@@ -326,4 +421,14 @@ export async function probarConexionAFIP(): Promise<{
 export function invalidarCache(): void {
   tokenCache.clear()
   console.log('[WSAA] Cache invalidado')
+}
+
+/**
+ * Obtiene información del token en cache
+ */
+export function getTokenCacheInfo(): { service: string; expiration: Date } | null {
+  for (const [key, value] of tokenCache.entries()) {
+    return { service: value.service, expiration: value.expiration }
+  }
+  return null
 }

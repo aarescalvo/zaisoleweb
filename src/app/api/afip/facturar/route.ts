@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { 
+  FECAESolicitar, 
+  FECompUltimoAutorizado,
+  formatearFechaAFIP,
+  calcularIVA,
+  TIPO_COMPROBANTE,
+  TIPO_DOCUMENTO,
+  MONEDA,
+  ALICUOTA_IVA,
+  CONCEPTO
+} from '@/lib/afip-wsfe'
+import { getConfiguracionAFIP } from '@/lib/afip-wsaa'
 
 // POST - Emitir factura electrónica
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
-    const { facturaId } = data
+    const { facturaId, simular = false } = data
 
     // Validar que existe la factura
     if (!facturaId) {
@@ -38,26 +50,124 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener configuración AFIP
-    const config = await db.configuracionFrigorifico.findFirst()
+    const config = await getConfiguracionAFIP()
     
-    if (!config?.cuit) {
+    if (!config) {
       return NextResponse.json(
-        { success: false, error: 'Falta configuración AFIP (CUIT)' },
+        { success: false, error: 'Configuración AFIP incompleta. Configure los certificados primero.' },
         { status: 400 }
       )
     }
 
-    // Simular solicitud de CAE a AFIP
-    // En producción, aquí se conectaría con el web service de AFIP
-    const caeSimulado = generarCAESimulado()
-    const vencimientoCAE = calcularVencimientoCAE()
+    // Si es modo simulación, generar CAE simulado
+    if (simular) {
+      const caeSimulado = generarCAESimulado()
+      const vencimientoCAE = calcularVencimientoCAE()
 
-    // Actualizar factura con CAE
+      // Actualizar factura con CAE simulado
+      const facturaActualizada = await db.factura.update({
+        where: { id: facturaId },
+        data: {
+          cae: caeSimulado,
+          caeVencimiento: vencimientoCAE,
+          estado: 'EMITIDA',
+          fechaEmision: new Date()
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        simulated: true,
+        data: {
+          cae: caeSimulado,
+          vencimiento: vencimientoCAE.toISOString().split('T')[0],
+          factura: facturaActualizada
+        }
+      })
+    }
+
+    // Modo real: conectar con AFIP
+    // Determinar tipo de comprobante según el cliente
+    const tipoComprobante = factura.tipoComprobante || 
+      determinarTipoComprobante(factura.cliente.cuit, true)
+
+    // Obtener último número de comprobante
+    const ultimoNumero = await FECompUltimoAutorizado(
+      tipoComprobante,
+      config.puntoVenta,
+      config
+    )
+    const proximoNumero = ultimoNumero + 1
+
+    // Calcular importes
+    const subtotal = factura.subtotal || factura.detalles.reduce((sum, d) => sum + (d.subtotal || 0), 0)
+    const importeGravado = subtotal // Simplificado: asumimos que todo está gravado
+    const importeIVA = factura.iva || calcularIVA(importeGravado, ALICUOTA_IVA.VEINTIUNO)
+    const importeTotal = factura.total || (subtotal + importeIVA)
+
+    // Preparar request para AFIP
+    const fechaFormateada = formatearFechaAFIP(factura.fecha)
+
+    // Determinar tipo de documento del cliente
+    let tipoDocumento: number = TIPO_DOCUMENTO.CUIT
+    let numeroDocumento = factura.cliente.cuit?.replace(/-/g, '') || '0'
+    
+    // Si no tiene CUIT, usar consumidor final
+    if (!factura.cliente.cuit || factura.cliente.cuit.length < 11) {
+      tipoDocumento = TIPO_DOCUMENTO.SIN_IDENTIFICAR
+      numeroDocumento = '0'
+    }
+
+    // Construir array de IVA
+    const ivas: { id: number; baseImp: number; importe: number }[] = []
+    if (importeIVA > 0) {
+      ivas.push({
+        id: ALICUOTA_IVA.VEINTIUNO,
+        baseImp: importeGravado,
+        importe: importeIVA
+      })
+    }
+
+    const feRequest = {
+      tipoComprobante,
+      puntoVenta: config.puntoVenta,
+      fecha: fechaFormateada,
+      concepto: CONCEPTO.PRODUCTO,
+      tipoDocumento,
+      numeroDocumento,
+      importeTotal,
+      importeGravado,
+      importeNoGravado: 0,
+      importeExento: 0,
+      importeIVA,
+      importeTributos: 0,
+      codigoMoneda: MONEDA.PESOS,
+      cotizacionMoneda: 1,
+      ivas
+    }
+
+    // Solicitar CAE a AFIP
+    const resultado = await FECAESolicitar(feRequest, config)
+
+    if (!resultado.success) {
+      return NextResponse.json({
+        success: false,
+        error: 'Error al obtener CAE de AFIP',
+        errores: resultado.errores,
+        observaciones: resultado.observaciones
+      }, { status: 400 })
+    }
+
+    // Actualizar factura con CAE real
     const facturaActualizada = await db.factura.update({
       where: { id: facturaId },
       data: {
-        cae: caeSimulado,
-        caeVencimiento: vencimientoCAE,
+        cae: resultado.cae,
+        caeVencimiento: resultado.caeVencimiento,
+        tipoComprobante,
+        puntoVenta: config.puntoVenta,
+        numeroAfip: resultado.numeroComprobante,
+        numero: `${String(config.puntoVenta).padStart(4, '0')}-${String(resultado.numeroComprobante).padStart(8, '0')}`,
         estado: 'EMITIDA',
         fechaEmision: new Date()
       }
@@ -70,22 +180,28 @@ export async function POST(request: NextRequest) {
         accion: 'CREATE',
         entidad: 'Factura',
         entidadId: facturaId,
-        descripcion: `Factura ${factura.numero} emitida con CAE ${caeSimulado}`,
+        descripcion: `Factura ${facturaActualizada.numero} emitida con CAE ${resultado.cae}`,
       }
     })
 
     return NextResponse.json({
       success: true,
       data: {
-        cae: caeSimulado,
-        vencimiento: vencimientoCAE.toISOString().split('T')[0],
+        cae: resultado.cae,
+        vencimiento: resultado.caeVencimiento.toISOString().split('T')[0],
+        numeroComprobante: resultado.numeroComprobante,
+        tipoComprobante,
+        observaciones: resultado.observaciones,
         factura: facturaActualizada
       }
     })
   } catch (error) {
     console.error('Error al emitir factura AFIP:', error)
     return NextResponse.json(
-      { success: false, error: 'Error al emitir factura electrónica' },
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Error al emitir factura electrónica' 
+      },
       { status: 500 }
     )
   }
@@ -111,4 +227,80 @@ function calcularVencimientoCAE(): Date {
     }
   }
   return fecha
+}
+
+// Función auxiliar para determinar tipo de comprobante
+function determinarTipoComprobante(
+  cuitCliente: string | null,
+  esResponsableInscripto: boolean = true
+): number {
+  // Si no tiene CUIT o es consumidor final
+  if (!cuitCliente || cuitCliente.length < 11) {
+    return TIPO_COMPROBANTE.FACTURA_B // Factura B para consumidor final
+  }
+
+  // Si el cliente tiene CUIT, depende de la responsabilidad
+  if (esResponsableInscripto) {
+    return TIPO_COMPROBANTE.FACTURA_A // Factura A para RI
+  }
+
+  return TIPO_COMPROBANTE.FACTURA_B // Factura B para monotributista/exento
+}
+
+// GET - Consultar estado de una factura
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams
+    const facturaId = searchParams.get('facturaId')
+
+    if (!facturaId) {
+      return NextResponse.json(
+        { success: false, error: 'ID de factura requerido' },
+        { status: 400 }
+      )
+    }
+
+    const factura = await db.factura.findUnique({
+      where: { id: facturaId },
+      select: {
+        id: true,
+        numero: true,
+        estado: true,
+        cae: true,
+        caeVencimiento: true,
+        tipoComprobante: true,
+        puntoVenta: true,
+        numeroAfip: true,
+        total: true,
+        fecha: true,
+        cliente: {
+          select: {
+            nombre: true,
+            cuit: true
+          }
+        }
+      }
+    })
+
+    if (!factura) {
+      return NextResponse.json(
+        { success: false, error: 'Factura no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: factura
+    })
+  } catch (error) {
+    console.error('Error al consultar factura:', error)
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Error al consultar factura' 
+      },
+      { status: 500 }
+    )
+  }
 }

@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { TrendingUp, TrendingDown, Calendar, Filter, BarChart3, LineChart, ArrowUpDown } from 'lucide-react'
+import { TrendingUp, TrendingDown, Calendar, Filter, BarChart3, LineChart, ArrowUpDown, Download } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import { PDFExporter } from '@/lib/export-pdf'
+import { ExcelExporter } from '@/lib/export-excel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -76,7 +79,39 @@ export function RendimientosHistorico({ operador }: { operador: Operador }) {
   const [periodoFiltro, setPeriodoFiltro] = useState('todos')
   const [tipoAnimalFiltro, setTipoAnimalFiltro] = useState('todos')
   const [chartType, setChartType] = useState<'area' | 'bar' | 'composed'>('area')
-  
+
+  // Funciones de exportación
+  const handleExportPDF = () => {
+    const data = datosFiltrados.map(r => ({
+      fecha: r.fecha,
+      periodo: r.periodo,
+      tipoAnimal: r.tipoAnimal,
+      cantidadAnimales: r.cantidadAnimales,
+      pesoVivoTotal: r.pesoVivoTotal,
+      pesoFrioTotal: r.pesoFrioTotal,
+      rindePromedio: r.rindePromedio,
+      rindeMaximo: r.rindeMaximo,
+      rindeMinimo: r.rindeMinimo,
+    }))
+    const doc = PDFExporter.generateRendimientoReport(data)
+    PDFExporter.downloadPDF(doc, `reporte_rendimientos_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
+  const handleExportExcel = () => {
+    const data = datosFiltrados.map(r => ({
+      fecha: r.fecha,
+      periodo: r.periodo,
+      tipoAnimal: r.tipoAnimal,
+      cantidadAnimales: r.cantidadAnimales,
+      pesoVivoTotal: r.pesoVivoTotal,
+      pesoFrioTotal: r.pesoFrioTotal,
+      rindePromedio: r.rindePromedio,
+      rindeMaximo: r.rindeMaximo,
+      rindeMinimo: r.rindeMinimo,
+    }))
+    ExcelExporter.exportRendimientoReport(data, `reporte_rendimientos_${new Date().toISOString().split('T')[0]}`)
+  }
+
   useEffect(() => {
     fetchRendimientos()
   }, [])

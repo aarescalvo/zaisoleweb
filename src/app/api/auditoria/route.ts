@@ -1,95 +1,57 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuditLogs, logAudit } from '@/lib/audit';
 
-// GET - Fetch auditoría
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const modulo = searchParams.get('modulo')
-    const accion = searchParams.get('accion')
-    const operadorId = searchParams.get('operadorId')
-    const limit = parseInt(searchParams.get('limit') || '100')
-    
-    const where: Record<string, unknown> = {}
-    
-    if (modulo) where.modulo = modulo
-    if (accion) where.accion = accion
-    if (operadorId) where.operadorId = operadorId
-    
-    const auditoria = await db.auditoria.findMany({
-      where,
-      include: {
-        operador: {
-          select: {
-            nombre: true,
-            nivel: true
-          }
-        }
-      },
-      orderBy: {
-        fecha: 'desc'
-      },
-      take: limit
-    })
-    
-    return NextResponse.json({
-      success: true,
-      data: auditoria
-    })
-  } catch (error) {
-    console.error('Error fetching auditoria:', error)
-    return NextResponse.json(
-      { success: false, error: 'Error al obtener auditoría' },
-      { status: 500 }
-    )
+  const { searchParams } = new URL(request.url);
+  
+  // Parsear fechas si vienen como strings
+  let fechaDesde: Date | undefined;
+  let fechaHasta: Date | undefined;
+  
+  if (searchParams.get('fechaDesde')) {
+    fechaDesde = new Date(searchParams.get('fechaDesde')!);
   }
+  if (searchParams.get('fechaHasta')) {
+    fechaHasta = new Date(searchParams.get('fechaHasta')!);
+    // Incluir todo el día final
+    fechaHasta.setHours(23, 59, 59, 999);
+  }
+  
+  const logs = await getAuditLogs({
+    modulo: searchParams.get('modulo') || undefined,
+    accion: searchParams.get('accion') || undefined,
+    operadorId: searchParams.get('operadorId') || undefined,
+    fechaDesde,
+    fechaHasta,
+    limit: parseInt(searchParams.get('limit') || '50'),
+    offset: parseInt(searchParams.get('offset') || '0')
+  });
+  
+  return NextResponse.json({ success: true, data: logs });
 }
 
-// POST - Create auditoría entry
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const {
-      operadorId,
-      modulo,
-      accion,
-      entidad,
-      entidadId,
-      descripcion,
-      datosAntes,
-      datosDespues
-    } = body
+    const body = await request.json();
     
-    const entry = await db.auditoria.create({
-      data: {
-        operadorId,
-        modulo,
-        accion,
-        entidad,
-        entidadId,
-        descripcion,
-        datosAntes: datosAntes ? JSON.stringify(datosAntes) : null,
-        datosDespues: datosDespues ? JSON.stringify(datosDespues) : null
-      },
-      include: {
-        operador: {
-          select: {
-            nombre: true,
-            nivel: true
-          }
-        }
-      }
-    })
+    await logAudit({
+      modulo: body.modulo,
+      accion: body.accion,
+      entidad: body.entidad,
+      entidadId: body.entidadId,
+      descripcion: body.descripcion,
+      datosAntes: body.datosAntes,
+      datosDespues: body.datosDespues,
+      operadorId: body.operadorId,
+      ip: body.ip
+    });
     
-    return NextResponse.json({
-      success: true,
-      data: entry
-    })
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error creating auditoria:', error)
+    console.error('Error creating audit log:', error);
     return NextResponse.json(
       { success: false, error: 'Error al crear registro de auditoría' },
       { status: 500 }
-    )
+    );
   }
 }

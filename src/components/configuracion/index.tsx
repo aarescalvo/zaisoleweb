@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Building2, Warehouse, UserCheck, Package, Users, Truck, Scale, Printer, 
   Leaf, Layers, ShoppingBag, Tags, PackageOpen, ArrowRightLeft, CreditCard, 
-  Wallet, Receipt, Calculator, Building, Banknote, FileKey 
+  Wallet, Receipt, Calculator, Building, Banknote, FileKey, History, Shield
 } from 'lucide-react'
 import { ConfigFrigorifico } from './config-frigorifico'
 import { Corrales } from './corrales'
@@ -31,6 +31,7 @@ import { Balanzas } from './balanzas'
 import { Impresoras } from './impresoras'
 import { Operadores } from './operadores'
 import { AFIPConfig } from './afip-config'
+import { AuditoriaConfig } from './auditoria'
 
 interface Operador {
   id: string
@@ -180,6 +181,15 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
               <FileKey className="w-4 h-4" />
               <span className="hidden sm:inline">AFIP</span>
             </TabsTrigger>
+
+            {/* Separador visual */}
+            <div className="w-px h-6 bg-stone-300 mx-1 self-center hidden sm:block" />
+
+            {/* GRUPO: Auditoría */}
+            <TabsTrigger value="auditoria" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">Auditoría</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* GRUPO: Empresa */}
@@ -269,6 +279,11 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
           {/* GRUPO: AFIP */}
           <TabsContent value="afip">
             <AFIPConfig operador={operador} />
+          </TabsContent>
+
+          {/* GRUPO: Auditoría */}
+          <TabsContent value="auditoria">
+            <AuditoriaConfig operador={operador} />
           </TabsContent>
         </Tabs>
       </div>

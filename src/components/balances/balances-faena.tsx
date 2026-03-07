@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Scale, Plus, Edit, Trash2, Save, X, TrendingUp, TrendingDown, Minus, Calendar, Search } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import { PDFExporter } from '@/lib/export-pdf'
+import { ExcelExporter } from '@/lib/export-excel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -226,6 +229,36 @@ export function BalancesFaena({ operador }: { operador: Operador }) {
     ? Math.min(...balances.map(b => b.rinde)).toFixed(2)
     : '0.00'
 
+  // Funciones de exportación
+  const handleExportPDF = () => {
+    const data = balancesFiltrados.map(b => ({
+      fecha: b.fecha,
+      tropaNumero: b.tropa?.numero || 0,
+      productor: b.tropa?.productor?.nombre || 'Sin productor',
+      cantidadAnimales: 0, // No disponible en este modelo
+      pesoVivoTotal: b.pesoVivoTotal,
+      pesoFrioTotal: b.pesoFrioTotal,
+      rinde: b.rinde,
+      observaciones: b.observaciones,
+    }))
+    const doc = PDFExporter.generateFaenaReport(data)
+    PDFExporter.downloadPDF(doc, `reporte_faena_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
+  const handleExportExcel = () => {
+    const data = balancesFiltrados.map(b => ({
+      fecha: b.fecha,
+      tropaNumero: b.tropa?.numero || 0,
+      productor: b.tropa?.productor?.nombre || 'Sin productor',
+      cantidadAnimales: 0,
+      pesoVivoTotal: b.pesoVivoTotal,
+      pesoFrioTotal: b.pesoFrioTotal,
+      rinde: b.rinde,
+      observaciones: b.observaciones,
+    }))
+    ExcelExporter.exportFaenaReport(data, `reporte_faena_${new Date().toISOString().split('T')[0]}`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Tarjetas de resumen */}
@@ -302,6 +335,13 @@ export function BalancesFaena({ operador }: { operador: Operador }) {
                   className="pl-9"
                 />
               </div>
+              <ExportButton
+                onExportPDF={handleExportPDF}
+                onExportExcel={handleExportExcel}
+                filename={`reporte_faena_${new Date().toISOString().split('T')[0]}`}
+                showPrint={false}
+                size="sm"
+              />
               <Button onClick={handleNuevo} className="bg-amber-500 hover:bg-amber-600 shrink-0">
                 <Plus className="w-4 h-4 mr-2" />
                 Nuevo

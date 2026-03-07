@@ -24,12 +24,13 @@ import { PagosModule } from '@/components/pagos'
 import { DashboardEjecutivo } from '@/components/dashboard-ejecutivo'
 import { ReportesGerenciales } from '@/components/reportes-gerenciales'
 import { OrdenesCompraModule } from '@/components/ordenes-compra'
+import { ConciliacionModule } from '@/components/conciliacion'
 
 // Lucide icons
 import { 
   Truck, Beef, Scale, ClipboardList, TrendingUp, Package, Tag, Scissors, 
   Warehouse, FileText, Settings, Calendar, LogOut, Lock, Users,
-  Loader2, Plus, Search, Weight, RefreshCw, BoxSelect, BarChart3, ShoppingCart, CreditCard
+  Loader2, Plus, Search, Weight, RefreshCw, BoxSelect, BarChart3, ShoppingCart, CreditCard, Building2
 } from 'lucide-react'
 
 // Types
@@ -77,7 +78,7 @@ interface Stats {
   enCamara: number
 }
 
-type Page = 'dashboard' | 'pesajeCamiones' | 'movimientoHacienda' | 'pesajeIndividual' | 'listaFaena' | 'romaneo' | 'ingresoCajon' | 'menudencias' | 'stock' | 'reportes' | 'balances' | 'pagos' | 'ordenesCompra' | 'reportesGerenciales' | 'configuracion'
+type Page = 'dashboard' | 'pesajeCamiones' | 'movimientoHacienda' | 'pesajeIndividual' | 'listaFaena' | 'romaneo' | 'ingresoCajon' | 'menudencias' | 'stock' | 'reportes' | 'balances' | 'pagos' | 'ordenesCompra' | 'reportesGerenciales' | 'conciliacion' | 'configuracion'
 
 const NAV_ITEMS = [
   { id: 'dashboard' as Page, label: 'Dashboard', icon: Beef },
@@ -92,6 +93,7 @@ const NAV_ITEMS = [
   { id: 'reportes' as Page, label: 'Reportes', icon: FileText, permiso: 'puedeReportes' },
   { id: 'balances' as Page, label: 'Balances', icon: BarChart3, permiso: 'puedeReportes' },
   { id: 'pagos' as Page, label: 'Pagos y Cobranzas', icon: CreditCard, permiso: 'puedeConfiguracion' },
+  { id: 'conciliacion' as Page, label: 'Conciliación Bancaria', icon: Building2, permiso: 'puedeConfiguracion' },
   { id: 'reportesGerenciales' as Page, label: 'Reportes Gerenciales', icon: BarChart3, permiso: 'puedeReportes' },
   { id: 'ordenesCompra' as Page, label: 'Órdenes de Compra', icon: ShoppingCart, permiso: 'puedeConfiguracion' },
   { id: 'configuracion' as Page, label: 'Configuración', icon: Settings, permiso: 'puedeConfiguracion' },
@@ -507,6 +509,8 @@ export default function FrigorificoApp() {
         return <ReportesGerenciales operador={operador} />
       case 'ordenesCompra':
         return <OrdenesCompraModule operador={operador} />
+      case 'conciliacion':
+        return <ConciliacionModule operador={operador} />
       case 'configuracion':
         return <ConfiguracionModule operador={operador} />
       default:

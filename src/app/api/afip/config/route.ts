@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { 
+  validateCertificatePair, 
+  storeCertificate, 
+  getCertificateConfig,
+  parseCertificate,
+  needsRenewal,
+  deleteCertificates,
+  CertificateInfo
+} from '@/lib/afip-certificates'
+import { verificarConfiguracionAFIP, probarConexionAFIP } from '@/lib/afip-wsaa'
 
 // GET - Obtener configuración AFIP
 export async function GET() {
   try {
     const config = await db.configuracionFrigorifico.findFirst()
+    const certConfig = await getCertificateConfig()
+    
+    // Obtener info del certificado si existe
+    let certInfo: CertificateInfo | null = null
+    if (certConfig?.certificate) {
+      certInfo = parseCertificate(certConfig.certificate)
+    }
     
     return NextResponse.json({
       success: true,
@@ -12,10 +29,22 @@ export async function GET() {
         cuit: config?.cuit || '',
         razonSocial: config?.nombre || '',
         domicilio: config?.direccion || '',
-        puntoVenta: 1, // Por defecto, debería configurarse
-        inicioActividades: '', // Pendiente de agregar al modelo
-        certificadoConfigurado: false, // Pendiente de implementar
-        clavePrivadaConfigurada: false // Pendiente de implementar
+        puntoVenta: certConfig?.puntoVenta || 1,
+        inicioActividades: '',
+        ambiente: certConfig?.ambiente || 'testing',
+        certificadoConfigurado: !!certConfig?.certificate,
+        clavePrivadaConfigurada: !!certConfig?.privateKey,
+        certificadoValido: certConfig?.isValid || false,
+        fechaVencimiento: certConfig?.expirationDate?.toISOString() || null,
+        necesitaRenovacion: certConfig?.expirationDate ? needsRenewal(certConfig.expirationDate) : false,
+        certificadoInfo: certInfo ? {
+          subject: certInfo.subject,
+          issuer: certInfo.issuer,
+          notBefore: certInfo.notBefore.toISOString(),
+          notAfter: certInfo.notAfter.toISOString(),
+          daysUntilExpiry: certInfo.daysUntilExpiry,
+          cuit: certInfo.cuit
+        } : null
       }
     })
   } catch (error) {
@@ -36,7 +65,11 @@ export async function POST(request: NextRequest) {
       razonSocial, 
       domicilio, 
       puntoVenta,
-      inicioActividades 
+      inicioActividades,
+      ambiente,
+      // Certificados (opcional)
+      certificado,
+      clavePrivada
     } = body
 
     // Validar CUIT
@@ -47,7 +80,59 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Buscar o crear configuración
+    // Si se envían certificados, validarlos
+    if (certificado || clavePrivada) {
+      if (!certificado || !clavePrivada) {
+        return NextResponse.json(
+          { success: false, error: 'Debe enviar ambos: certificado y clave privada' },
+          { status: 400 }
+        )
+      }
+
+      const validation = validateCertificatePair(certificado, clavePrivada)
+      if (!validation.valid) {
+        return NextResponse.json(
+          { success: false, errors: validation.errors },
+          { status: 400 }
+        )
+      }
+
+      // Guardar certificados
+      const storeResult = await storeCertificate(
+        certificado,
+        clavePrivada,
+        puntoVenta || 1,
+        ambiente || 'testing'
+      )
+
+      if (!storeResult.success) {
+        return NextResponse.json(
+          { success: false, errors: storeResult.errors },
+          { status: 400 }
+        )
+      }
+    } else {
+      // Solo actualizar punto de venta y ambiente
+      const existing = await db.aFIPConfig.findFirst()
+      if (existing) {
+        await db.aFIPConfig.update({
+          where: { id: existing.id },
+          data: {
+            puntoVenta: puntoVenta || existing.puntoVenta,
+            ambiente: ambiente || existing.ambiente
+          }
+        })
+      } else {
+        await db.aFIPConfig.create({
+          data: {
+            puntoVenta: puntoVenta || 1,
+            ambiente: ambiente || 'testing'
+          }
+        })
+      }
+    }
+
+    // Actualizar configuración del frigorífico
     let config = await db.configuracionFrigorifico.findFirst()
     
     if (config) {
@@ -63,7 +148,7 @@ export async function POST(request: NextRequest) {
       config = await db.configuracionFrigorifico.create({
         data: {
           cuit: cuit || null,
-          nombre: razonSocial || 'Solemar Alimentaria',
+          nombre: razonSocial || 'Frigorífico',
           direccion: domicilio || null
         }
       })
@@ -92,32 +177,68 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// POST /test-connection - Probar conexión con AFIP
+// PUT - Probar conexión con AFIP
 export async function PUT(request: NextRequest) {
   try {
-    const config = await db.configuracionFrigorifico.findFirst()
+    // Verificar configuración primero
+    const verificacion = await verificarConfiguracionAFIP()
     
-    if (!config?.cuit) {
+    if (!verificacion.configurado) {
       return NextResponse.json({
         success: false,
-        error: 'Falta configurar CUIT'
+        error: 'Configuración incompleta',
+        errores: verificacion.errores
       })
     }
 
-    // Simular prueba de conexión
-    // En producción, aquí se conectaría con el WSAA de AFIP
-    const resultadoConexion = await probarConexionAFIP(config.cuit)
+    // Probar conexión
+    const resultado = await probarConexionAFIP()
     
     return NextResponse.json({
-      success: resultadoConexion.ok,
-      message: resultadoConexion.mensaje,
-      serverTime: new Date().toISOString()
+      success: resultado.exito,
+      message: resultado.mensaje,
+      vencimiento: resultado.vencimiento?.toISOString()
     })
   } catch (error) {
     console.error('Error al probar conexión AFIP:', error)
     return NextResponse.json({
       success: false,
-      error: 'Error de conexión con AFIP'
+      error: error instanceof Error ? error.message : 'Error de conexión con AFIP'
+    })
+  }
+}
+
+// DELETE - Eliminar certificados
+export async function DELETE() {
+  try {
+    const result = await deleteCertificates()
+    
+    if (!result) {
+      return NextResponse.json({
+        success: false,
+        error: 'Error al eliminar certificados'
+      })
+    }
+
+    // Registrar en auditoría
+    await db.auditoria.create({
+      data: {
+        modulo: 'AFIP',
+        accion: 'DELETE',
+        entidad: 'CertificadosAFIP',
+        descripcion: 'Certificados AFIP eliminados',
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Certificados eliminados correctamente'
+    })
+  } catch (error) {
+    console.error('Error al eliminar certificados:', error)
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Error al eliminar certificados'
     })
   }
 }
@@ -144,26 +265,4 @@ function validarCUIT(cuit: string): boolean {
   const digitoVerificador = resto === 0 ? 0 : resto === 1 ? 9 : 11 - resto
   
   return parseInt(cuitLimpio[10]) === digitoVerificador
-}
-
-// Función auxiliar para simular prueba de conexión
-async function probarConexionAFIP(cuit: string): Promise<{ ok: boolean; mensaje: string }> {
-  // Simulación de prueba de conexión
-  // En producción, esto llamaría al WSAA
-  
-  // Simular delay de red
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  
-  // Simular respuesta exitosa
-  if (validarCUIT(cuit)) {
-    return {
-      ok: true,
-      mensaje: 'Conexión exitosa con AFIP. Web Service disponible.'
-    }
-  } else {
-    return {
-      ok: false,
-      mensaje: 'CUIT no válido para el servicio'
-    }
-  }
 }

@@ -193,6 +193,12 @@ model Operador {
   email         String?
   activo        Boolean  @default(true)
   
+  // Control de contraseña
+  passwordChangedAt  DateTime?
+  passwordMustChange Boolean @default(false)
+  failedLoginAttempts Int    @default(0)
+  lockedUntil        DateTime?
+  
   // Permisos detallados
   puedePesajeCamiones     Boolean @default(true)
   puedePesajeIndividual   Boolean @default(true)
@@ -222,6 +228,9 @@ model Operador {
   facturas             Factura[]
   ccirs                CCIR[]
   declaracionesJuradas DeclaracionJurada[]
+  sesiones             Sesion[]
+  intentosLogin        IntentoLogin[]
+  ipsBloqueadas        IpBloqueada[]
 }
 
 enum RolOperador {
@@ -917,17 +926,123 @@ model Auditoria {
   operador      Operador? @relation(fields: [operadorId], references: [id])
   
   modulo        String
-  accion        String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+  submodulo     String?
+  accion        String   // CREATE, UPDATE, DELETE, READ, LOGIN, LOGOUT, EXPORT
   entidad       String
   entidadId     String?
+  entidadNombre String?  // Nombre legible de la entidad
+  
   descripcion   String
   datosAntes    String?  // JSON
   datosDespues  String?  // JSON
+  cambios       String?  // Solo campos modificados (JSON)
   
   fecha         DateTime @default(now())
   ip            String?
+  userAgent     String?
+  
+  // Contexto adicional
+  sessionId     String?
+  dispositivo   String?
   
   @@index([modulo])
+  @@index([accion])
+  @@index([entidad])
+  @@index([fecha])
+  @@index([operadorId])
+}
+
+// ==================== SESIONES ====================
+
+model Sesion {
+  id            String   @id @default(cuid())
+  operadorId    String
+  operador      Operador @relation(fields: [operadorId], references: [id])
+  
+  token         String   @unique
+  fechaInicio   DateTime @default(now())
+  fechaExpiracion DateTime
+  ultimaActividad DateTime @default(now())
+  
+  ip            String?
+  userAgent     String?
+  dispositivo   String?
+  
+  activa        Boolean  @default(true)
+  fechaCierre   DateTime?
+  motivoCierre  String?  // LOGOUT, EXPIRED, FORCED, SECURITY
+  
+  @@index([operadorId])
+  @@index([token])
+  @@index([fechaExpiracion])
+}
+
+// ==================== CONFIGURACIÓN DE SEGURIDAD ====================
+
+model ConfiguracionSeguridad {
+  id                          String   @id @default(cuid())
+  
+  // Política de contraseñas
+  passwordMinLength           Int      @default(8)
+  passwordRequireUppercase    Boolean  @default(true)
+  passwordRequireLowercase    Boolean  @default(true)
+  passwordRequireNumbers      Boolean  @default(true)
+  passwordRequireSpecialChars Boolean  @default(false)
+  passwordMaxAge              Int      @default(90)  // días
+  
+  // Sesión
+  sessionTimeout              Int      @default(480)  // minutos (8 horas)
+  maxConcurrentSessions       Int      @default(1)
+  
+  // Intentos de login
+  maxLoginAttempts            Int      @default(5)
+  lockoutDuration             Int      @default(30)  // minutos
+  
+  // Notificaciones de seguridad
+  notifyNewIp                 Boolean  @default(true)
+  notifyFailedAttempts        Boolean  @default(true)
+  notifyPasswordChange        Boolean  @default(true)
+  notifyOutOfHoursAccess      Boolean  @default(false)
+  
+  // Horario permitido (opcional)
+  restrictedHoursEnabled      Boolean  @default(false)
+  allowedHourStart            Int?
+  allowedHourEnd              Int?
+  
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+// ==================== BLOQUEOS DE IP ====================
+
+model IpBloqueada {
+  id            String   @id @default(cuid())
+  ip            String
+  motivo        String   // BRUTE_FORCE, MANUAL, SUSPICIOUS_ACTIVITY
+  fechaBloqueo  DateTime @default(now())
+  fechaExpiracion DateTime?
+  activo        Boolean  @default(true)
+  operadorId    String?  // Si fue bloqueado manualmente
+  operador      Operador? @relation(fields: [operadorId], references: [id])
+  
+  @@index([ip])
+  @@index([activo])
+}
+
+// ==================== INTENTOS DE LOGIN FALLIDOS ====================
+
+model IntentoLogin {
+  id            String   @id @default(cuid())
+  ip            String
+  usuario       String?  // Usuario intentado
+  operadorId    String?  // Si el usuario existe
+  operador      Operador? @relation(fields: [operadorId], references: [id])
+  exitoso       Boolean
+  motivo        String?  // USUARIO_NO_EXISTE, PASSWORD_INCORRECTO, BLOQUEADO, etc.
+  fecha         DateTime @default(now())
+  userAgent     String?
+  
+  @@index([ip])
   @@index([fecha])
 }
 
@@ -1782,6 +1897,8 @@ model MovimientoCaja {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   
+  detallesConciliacion DetalleConciliacion[]
+  
   @@index([cajaId])
   @@index([tipo])
   @@index([fecha])
@@ -1847,6 +1964,7 @@ model CuentaBancaria {
   updatedAt       DateTime  @updatedAt
   
   cheques         Cheque[]
+  conciliaciones  ConciliacionBancaria[]
   
   @@unique([cbu])
 }
@@ -2303,4 +2421,96 @@ enum EstadoInventario {
   EN_PROCESO
   COMPLETADO
   AJUSTADO
+}
+
+// ==================== CONFIGURACIÓN AFIP ====================
+
+model AFIPConfig {
+  id                String   @id @default(cuid())
+  
+  // Certificados
+  certificado       String?  // Contenido del certificado .pem (base64)
+  clavePrivada      String?  // Contenido de la clave privada .key (base64)
+  
+  // Configuración
+  puntoVenta        Int      @default(1)
+  ambiente          String   @default("testing") // testing, production
+  
+  // Validación
+  certificadoValido Boolean  @default(false)
+  fechaVencimiento  DateTime?
+  
+  // Última conexión
+  ultimoToken       DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ==================== CONCILIACIÓN BANCARIA ====================
+
+model ConciliacionBancaria {
+  id              String    @id @default(cuid())
+  cuentaBancariaId String
+  cuentaBancaria  CuentaBancaria @relation(fields: [cuentaBancariaId], references: [id])
+  
+  fecha           DateTime  @default(now())
+  fechaDesde      DateTime
+  fechaHasta      DateTime
+  
+  // Archivo importado
+  nombreArchivo   String
+  totalRegistros  Int
+  totalDebitos    Float     @default(0)
+  totalCreditos   Float     @default(0)
+  
+  // Resultados
+  conciliados     Int       @default(0)
+  pendientes      Int       @default(0)
+  diferencias     Int       @default(0)
+  
+  estado          String    @default("PENDIENTE") // PENDIENTE, PROCESADA, CONFIRMADA
+  
+  creadoPor       String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  detalles        DetalleConciliacion[]
+  
+  @@index([cuentaBancariaId])
+  @@index([fecha])
+}
+
+model DetalleConciliacion {
+  id                  String    @id @default(cuid())
+  conciliacionId      String
+  conciliacion        ConciliacionBancaria @relation(fields: [conciliacionId], references: [id], onDelete: Cascade)
+  
+  // Datos del extracto bancario
+  fechaExtracto       DateTime
+  descripcionExtracto String
+  referenciaExtracto  String?
+  montoExtracto       Float
+  tipoExtracto        String    // DEBITO, CREDITO
+  
+  // Datos del sistema (si se concilió)
+  movimientoCajaId    String?
+  movimientoCaja      MovimientoCaja? @relation(fields: [movimientoCajaId], references: [id])
+  
+  // Estado
+  estado              String    @default("PENDIENTE") // PENDIENTE, CONCILIADO, DIFERENCIA, AJUSTE
+  
+  // Confianza de la conciliación automática
+  confianza           Float?    // 0-100%
+  
+  // Ajuste (si aplica)
+  montoAjuste         Float?
+  observaciones       String?
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  @@index([conciliacionId])
+  @@index([estado])
 }

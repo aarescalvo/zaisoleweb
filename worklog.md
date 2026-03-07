@@ -185,8 +185,39 @@ Stage Summary:
 10. Reportes
 11. **Balances** (nuevo)
 12. **Pagos** (nuevo)
-13. **Órdenes de Compra** (nuevo)
-14. Configuración (24 tabs)
+13. **Conciliación Bancaria** (nuevo)
+14. **Órdenes de Compra** (nuevo)
+15. Configuración (24 tabs)
+
+---
+## Task ID: 8 - Conciliación Bancaria Automática
+### Work Task
+Implementar módulo completo de conciliación bancaria automática con soporte para múltiples bancos.
+
+### Work Summary
+**Modelos de Base de Datos:**
+- `ConciliacionBancaria`: Registro de cada conciliación con fechas, totales y estado
+- `DetalleConciliacion`: Detalles de cada movimiento del extracto con matching
+- Relaciones agregadas a `CuentaBancaria` y `MovimientoCaja`
+
+**APIs Creadas:**
+- `/api/conciliacion/importar` - Importa archivos CSV de bancos (CMF, Macro, Patagonia)
+- `/api/conciliacion/procesar` - Procesa conciliación automática con algoritmo de matching
+- `/api/conciliacion/diferencias` - Gestión de diferencias y resolución manual
+
+**Componentes UI:**
+- `importar-extracto.tsx` - Upload de archivos con preview y selector de banco
+- `conciliacion-automatica.tsx` - Procesamiento y visualización de resultados
+- `resolucion-diferencias.tsx` - Resolución manual de diferencias
+- `index.tsx` - Módulo principal con tabs
+
+**Funcionalidades:**
+- Parseo automático de formatos CSV de cada banco
+- Algoritmo de matching por monto, fecha y descripción
+- Niveles de confianza (50%-100%) para conciliación automática
+- Búsqueda manual de coincidencias
+- Creación de ajustes contables
+- Historial de conciliaciones
 
 ---
 *Worklog actualizado: Marzo 2026*
