@@ -258,6 +258,8 @@ model Usuario {
   tropasComoUsuarioFaena Tropa[]    @relation("UsuarioFaenaTropas")
   facturas               Factura[]
   declaracionesJuradas   DeclaracionJurada[]
+  notasCredito           NotaCredito[]
+  notasDebito            NotaDebito[]
 }
 
 // ==================== PRODUCTORES / CONSIGNATARIOS ====================
@@ -307,6 +309,9 @@ model Proveedor {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  
+  insumos          Insumo[]
+  ordenesCompra    OrdenCompra[]
 }
 
 // ==================== TRANSPORTISTAS ====================
@@ -434,6 +439,7 @@ model Tropa {
   
   animales        Animal[]
   listasFaena     ListaFaenaTropa[]
+  balancesFaena   BalanceFaena[]
   
   @@index([especie])
   @@index([estado])
@@ -1094,15 +1100,24 @@ model Factura {
   operadorId        String?
   operador          Operador?     @relation(fields: [operadorId], references: [id])
   
+  // Datos AFIP
+  cae               String?       // Código de Autorización Electrónico
+  caeVencimiento    DateTime?     // Fecha de vencimiento del CAE
+  tipoComprobante   Int?          // 1=FA, 6=FB, 11=FC, etc.
+  puntoVenta        Int?          // Punto de venta AFIP
+  numeroAfip        Int?          // Número de comprobante en AFIP
+  
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   
   detalles          DetalleFactura[]
+  pagosAplicados    PagoFactura[]
   
   @@index([numero])
   @@index([clienteId])
   @@index([estado])
   @@index([fecha])
+  @@index([cae])
 }
 
 model DetalleFactura {
@@ -1245,4 +1260,1047 @@ enum UsoImpresora {
   TICKETS         // Tickets de pesaje
   FACTURAS        // Facturas y remitos
   REPORTES        // Reportes generales
+}
+
+// ==================== INSUMOS Y MATERIALES ====================
+
+model CategoriaInsumo {
+  id            String   @id @default(cuid())
+  nombre        String   @unique
+  descripcion   String?
+  activo        Boolean  @default(true)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  insumos       Insumo[]
+}
+
+model Insumo {
+  id                  String            @id @default(cuid())
+  codigo              String            @unique
+  nombre              String
+  descripcion         String?
+  
+  // Categorización
+  categoriaId         String?
+  categoria           CategoriaInsumo?  @relation(fields: [categoriaId], references: [id])
+  
+  // Datos del insumo
+  unidadMedida        String            @default("UN")  // UN, KG, LT, M, M2, M3
+  marca               String?
+  modelo              String?
+  
+  // Precios y costos
+  precioUnitario      Float?
+  costoUnitario       Float?
+  
+  // Stock
+  stockMinimo         Float?
+  stockMaximo         Float?
+  puntoReposicion     Float?
+  
+  // Proveedor principal
+  proveedorId         String?
+  proveedor           Proveedor?        @relation(fields: [proveedorId], references: [id])
+  codigoProveedor     String?           // Código del insumo en el proveedor
+  
+  // Control
+  requiereLote        Boolean           @default(false)
+  requiereVencimiento Boolean           @default(false)
+  
+  activo              Boolean           @default(true)
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  stockPorDeposito    StockInsumo[]
+  movimientos         MovimientoInsumo[]
+  lotes               LoteInsumo[]
+  consumos            ConsumoInsumo[]
+  ordenesCompra       DetalleOrdenCompra[]
+  detallesInventario  DetalleInventario[]
+  
+  @@index([categoriaId])
+  @@index([proveedorId])
+}
+
+model Deposito {
+  id              String   @id @default(cuid())
+  nombre          String   @unique
+  descripcion     String?
+  ubicacion       String?
+  responsable     String?
+  
+  // Capacidad
+  capacidadM2     Float?
+  capacidadM3     Float?
+  
+  activo          Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  stockInsumos    StockInsumo[]
+  movimientosOrigen   MovimientoInsumo[] @relation("DepositoOrigen")
+  movimientosDestino  MovimientoInsumo[] @relation("DepositoDestino")
+  inventarios      Inventario[]
+}
+
+model StockInsumo {
+  id              String    @id @default(cuid())
+  insumoId        String
+  insumo          Insumo    @relation(fields: [insumoId], references: [id])
+  
+  depositoId      String
+  deposito        Deposito  @relation(fields: [depositoId], references: [id])
+  
+  // Cantidad actual
+  cantidad        Float     @default(0)
+  cantidadMinima  Float?
+  cantidadMaxima  Float?
+  
+  // Valorización
+  precioPromedio  Float?
+  valorTotal      Float?
+  
+  // Último movimiento
+  ultimoIngreso   DateTime?
+  ultimaSalida    DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([insumoId, depositoId])
+  @@index([insumoId])
+  @@index([depositoId])
+}
+
+model LoteInsumo {
+  id              String    @id @default(cuid())
+  insumoId        String
+  insumo          Insumo    @relation(fields: [insumoId], references: [id])
+  
+  codigo          String    // Código del lote
+  cantidadInicial Float
+  cantidadActual  Float     @default(0)
+  
+  // Fechas
+  fechaIngreso    DateTime  @default(now())
+  fechaVencimiento DateTime?
+  
+  // Costo
+  costoUnitario   Float?
+  
+  // Origen
+  ordenCompraId   String?
+  numeroRemito    String?
+  
+  activo          Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([insumoId, codigo])
+  @@index([insumoId])
+  @@index([fechaVencimiento])
+}
+
+model MovimientoInsumo {
+  id                String              @id @default(cuid())
+  insumoId          String
+  insumo            Insumo              @relation(fields: [insumoId], references: [id])
+  
+  // Tipo de movimiento
+  tipo              TipoMovimientoInsumo
+  
+  // Depósitos
+  depositoOrigenId  String?
+  depositoOrigen    Deposito?           @relation("DepositoOrigen", fields: [depositoOrigenId], references: [id])
+  depositoDestinoId String?
+  depositoDestino   Deposito?           @relation("DepositoDestino", fields: [depositoDestinoId], references: [id])
+  
+  // Cantidad
+  cantidad          Float
+  
+  // Lote (opcional)
+  loteInsumoId      String?
+  
+  // Costo
+  precioUnitario    Float?
+  costoTotal        Float?
+  
+  // Documento origen
+  documentoTipo     String?   // REMITO, FACTURA, ORDEN_INTERNA, AJUSTE
+  documentoNumero   String?
+  
+  // Centro de costo (opcional)
+  centroCostoId     String?
+  
+  // Producción (opcional)
+  produccionId      String?   // Si está asociado a una producción
+  
+  observaciones     String?
+  
+  operadorId        String?
+  
+  fecha             DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([insumoId])
+  @@index([tipo])
+  @@index([fecha])
+}
+
+enum TipoMovimientoInsumo {
+  INGRESO           // Entrada por compra
+  EGRESO            // Salida por consumo
+  TRANSFERENCIA     // Entre depósitos
+  AJUSTE_POSITIVO   // Ajuste de inventario (+)
+  AJUSTE_NEGATIVO   // Ajuste de inventario (-)
+  DEVOLUCION        // Devolución a proveedor
+  PERDIDA           // Pérdida/desperdicio
+}
+
+// ==================== ÓRDENES DE COMPRA ====================
+
+model OrdenCompra {
+  id              String              @id @default(cuid())
+  numero          Int                 @unique
+  
+  // Proveedor
+  proveedorId     String?
+  proveedor       Proveedor?          @relation(fields: [proveedorId], references: [id])
+  
+  // Fechas
+  fechaEmision    DateTime            @default(now())
+  fechaEntrega    DateTime?
+  fechaRecepcion  DateTime?
+  
+  // Estado
+  estado          EstadoOrdenCompra   @default(PENDIENTE)
+  
+  // Totales
+  subtotal        Float               @default(0)
+  iva             Float               @default(0)
+  total           Float               @default(0)
+  
+  // Observaciones
+  observaciones   String?
+  
+  // Operador
+  operadorId      String?
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  detalles        DetalleOrdenCompra[]
+  recepciones     RecepcionCompra[]
+  
+  @@index([proveedorId])
+  @@index([estado])
+  @@index([fechaEmision])
+}
+
+model DetalleOrdenCompra {
+  id              String        @id @default(cuid())
+  ordenCompraId   String
+  ordenCompra     OrdenCompra   @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  
+  // Insumo
+  insumoId        String
+  insumo          Insumo        @relation(fields: [insumoId], references: [id])
+  
+  // Cantidad
+  cantidadPedida  Float
+  cantidadRecibida Float        @default(0)
+  
+  // Precios
+  precioUnitario  Float
+  subtotal        Float
+  
+  // Estado
+  estado          EstadoDetalleOrden @default(PENDIENTE)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([ordenCompraId])
+  @@index([insumoId])
+}
+
+model RecepcionCompra {
+  id              String          @id @default(cuid())
+  ordenCompraId   String
+  ordenCompra     OrdenCompra     @relation(fields: [ordenCompraId], references: [id])
+  
+  // Datos de recepción
+  numeroRemito    String?
+  fechaRecepcion  DateTime        @default(now())
+  
+  // Estado
+  estado          EstadoRecepcion @default(PARCIAL)
+  
+  observaciones   String?
+  
+  operadorId      String?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([ordenCompraId])
+}
+
+enum EstadoOrdenCompra {
+  PENDIENTE       // Creada, esperando aprobación
+  APROBADA        // Aprobada, esperando envío
+  ENVIADA         // Enviada por proveedor
+  PARCIAL         // Recepción parcial
+  COMPLETADA      // Recepción completa
+  ANULADA         // Anulada
+}
+
+enum EstadoDetalleOrden {
+  PENDIENTE
+  PARCIAL
+  COMPLETADO
+}
+
+enum EstadoRecepcion {
+  PARCIAL
+  COMPLETA
+}
+
+// ==================== CENTROS DE COSTO ====================
+
+model CentroCosto {
+  id              String    @id @default(cuid())
+  codigo          String    @unique
+  nombre          String
+  descripcion     String?
+  
+  // Tipo
+  tipo            String    // PRODUCCION, ADMINISTRACION, LOGISTICA, MANTENIMIENTO
+  
+  // Responsable
+  responsable     String?
+  
+  // Presupuesto
+  presupuestoMensual Float?
+  
+  activo          Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  presupuestos    PresupuestoCentro[]
+  consumos        ConsumoCentro[]
+  consumosInsumo  ConsumoInsumo[]
+  balancesFaena   BalanceFaena[]
+  balancesInsumos BalanceInsumos[]
+}
+
+model PresupuestoCentro {
+  id              String      @id @default(cuid())
+  centroCostoId   String
+  centroCosto     CentroCosto @relation(fields: [centroCostoId], references: [id])
+  
+  // Período
+  anio            Int
+  mes             Int
+  
+  // Montos
+  presupuesto     Float
+  ejecutado       Float       @default(0)
+  desviacion      Float?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@unique([centroCostoId, anio, mes])
+  @@index([centroCostoId])
+}
+
+model ConsumoCentro {
+  id              String      @id @default(cuid())
+  centroCostoId   String
+  centroCosto     CentroCosto @relation(fields: [centroCostoId], references: [id])
+  
+  // Período
+  fecha           DateTime    @default(now())
+  
+  // Concepto
+  concepto        String
+  categoria       String?     // INSUMOS, PERSONAL, SERVICIOS, EQUIPOS
+  
+  // Montos
+  cantidad        Float?
+  monto           Float
+  
+  observaciones   String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([centroCostoId])
+  @@index([fecha])
+}
+
+// ==================== CONSUMO DE INSUMOS ====================
+
+model ConsumoInsumo {
+  id              String        @id @default(cuid())
+  insumoId        String
+  insumo          Insumo        @relation(fields: [insumoId], references: [id])
+  
+  // Centro de costo
+  centroCostoId   String?
+  centroCosto     CentroCosto?  @relation(fields: [centroCostoId], references: [id])
+  
+  // Cantidad
+  cantidad        Float
+  
+  // Costo
+  costoUnitario   Float?
+  costoTotal      Float?
+  
+  // Producción asociada
+  tropaId         String?
+  produccionFecha DateTime?
+  cantidadProducida Float?    // KG producidos
+  
+  // Eficiencia
+  consumoEstandar Float?      // Lo que debería haber consumido
+  desviacion      Float?      // Diferencia con el estándar
+  
+  observaciones   String?
+  
+  fecha           DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([insumoId])
+  @@index([centroCostoId])
+  @@index([fecha])
+}
+
+// ==================== FORMAS DE PAGO Y CAJAS ====================
+
+model FormaPago {
+  id              String          @id @default(cuid())
+  nombre          String          @unique
+  descripcion     String?
+  
+  // Tipo
+  tipo            TipoFormaPago
+  
+  // Configuración
+  requiereBanco   Boolean         @default(false)
+  requiereCheque  Boolean         @default(false)
+  requiereTarjeta Boolean         @default(false)
+  
+  // Contabilidad
+  cuentaContable  String?
+  
+  activo          Boolean         @default(true)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  pagos           Pago[]
+}
+
+enum TipoFormaPago {
+  EFECTIVO
+  CHEQUE_AL_DIA
+  CHEQUE_DIFERIDO
+  TRANSFERENCIA
+  TARJETA_CREDITO
+  TARJETA_DEBITO
+  RETENCION
+  COMPENSACION
+  OTRO
+}
+
+model Caja {
+  id              String    @id @default(cuid())
+  nombre          String    @unique
+  descripcion     String?
+  
+  // Tipo
+  tipo            String    // GENERAL, CHICA, BANCO
+  
+  // Responsable
+  responsable     String?
+  
+  // Saldo
+  saldoActual     Float     @default(0)
+  saldoInicial    Float     @default(0)
+  
+  // Cuenta bancaria (si aplica)
+  cuentaBancariaId String?
+  
+  activo          Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  movimientos     MovimientoCaja[]
+  arqueos         ArqueoCaja[]
+}
+
+model MovimientoCaja {
+  id              String          @id @default(cuid())
+  cajaId          String
+  caja            Caja            @relation(fields: [cajaId], references: [id])
+  
+  // Tipo
+  tipo            TipoMovimientoCaja
+  
+  // Monto
+  monto           Float
+  saldoAnterior   Float
+  saldoNueva      Float
+  
+  // Documento origen
+  documentoTipo   String?         // FACTURA, RECIBO, PAGO, TRANSFERENCIA
+  documentoId     String?
+  documentoNumero String?
+  
+  // Concepto
+  concepto        String
+  observaciones   String?
+  
+  // Tercero
+  terceroNombre   String?
+  terceroCuit     String?
+  
+  operadorId      String?
+  
+  fecha           DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([cajaId])
+  @@index([tipo])
+  @@index([fecha])
+}
+
+enum TipoMovimientoCaja {
+  INGRESO
+  EGRESO
+  TRANSFERENCIA_ENTRADA
+  TRANSFERENCIA_SALIDA
+  APERTURA
+  CIERRE
+  AJUSTE
+}
+
+model ArqueoCaja {
+  id              String    @id @default(cuid())
+  cajaId          String
+  caja            Caja      @relation(fields: [cajaId], references: [id])
+  
+  // Fecha
+  fecha           DateTime  @default(now())
+  
+  // Saldos
+  saldoSistema    Float     // Lo que el sistema dice
+  saldoFisico     Float     // Lo que se contó
+  diferencia      Float     // Diferencia
+  
+  // Estado
+  estado          String    @default("PENDIENTE") // PENDIENTE, APROBADO, RECHAZADO
+  
+  observaciones   String?
+  
+  operadorId      String?
+  supervisorId    String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([cajaId])
+  @@index([fecha])
+}
+
+model CuentaBancaria {
+  id              String    @id @default(cuid())
+  banco           String
+  tipoCuenta      String    // CAJA_AHORRO, CUENTA_CORRIENTE
+  numeroCuenta    String
+  cbu             String?
+  alias           String?
+  
+  // Saldo
+  saldoActual     Float     @default(0)
+  saldoConciliado Float     @default(0)
+  
+  // Datos adicionales
+  titular         String?
+  cuitTitular     String?
+  
+  activo          Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  cheques         Cheque[]
+  
+  @@unique([cbu])
+}
+
+model Cheque {
+  id                String          @id @default(cuid())
+  numero            String
+  banco             String
+  
+  // Monto
+  monto             Float
+  
+  // Fechas
+  fechaEmision      DateTime        @default(now())
+  fechaVencimiento  DateTime
+  fechaCobro        DateTime?
+  
+  // Origen
+  cuentaBancariaId  String?
+  cuentaBancaria    CuentaBancaria? @relation(fields: [cuentaBancariaId], references: [id])
+  
+  // Librador
+  libradorNombre    String
+  libradorCuit      String?
+  libradorTelefono  String?
+  
+  // Estado
+  estado            EstadoCheque    @default(RECIBIDO)
+  
+  // Destino
+  destino           String?         // BANCO, PROVEEDOR, etc.
+  
+  observaciones     String?
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  pagos             Pago[]
+  
+  @@unique([numero, banco])
+  @@index([estado])
+  @@index([fechaVencimiento])
+}
+
+enum EstadoCheque {
+  RECIBIDO        // Recibido de cliente
+  DEPOSITADO      // Depositado en banco
+  COBRADO         // Cobrado
+  ENTREGADO       // Entregado a proveedor
+  RECHAZADO       // Rechazado por falta de fondos
+  ANULADO         // Anulado
+}
+
+model Pago {
+  id              String        @id @default(cuid())
+  numero          Int           @unique
+  
+  // Cliente/Proveedor
+  terceroId       String?
+  terceroNombre   String
+  terceroCuit     String?
+  terceroTipo     String        // CLIENTE, PROVEEDOR
+  
+  // Forma de pago
+  formaPagoId     String?
+  formaPago       FormaPago?    @relation(fields: [formaPagoId], references: [id])
+  
+  // Monto
+  monto           Float
+  
+  // Cheque (si aplica)
+  chequeId        String?
+  cheque          Cheque?       @relation(fields: [chequeId], references: [id])
+  
+  // Fechas
+  fecha           DateTime      @default(now())
+  
+  // Estado
+  estado          EstadoPago    @default(PENDIENTE)
+  
+  // Documento
+  comprobante     String?
+  
+  observaciones   String?
+  
+  operadorId      String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  aplicaciones    PagoFactura[]
+  
+  @@index([terceroId])
+  @@index([estado])
+  @@index([fecha])
+}
+
+model PagoFactura {
+  id              String    @id @default(cuid())
+  pagoId          String
+  pago            Pago      @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  
+  facturaId       String
+  factura         Factura   @relation(fields: [facturaId], references: [id])
+  
+  // Monto aplicado
+  monto           Float
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([pagoId, facturaId])
+  @@index([pagoId])
+  @@index([facturaId])
+}
+
+enum EstadoPago {
+  PENDIENTE
+  CONFIRMADO
+  ANULADO
+}
+
+// ==================== BALANCES Y RENDIMIENTOS ====================
+
+model BalanceFaena {
+  id              String      @id @default(cuid())
+  tropaId         String?
+  tropa           Tropa?      @relation(fields: [tropaId], references: [id])
+  
+  // Período
+  fecha           DateTime    @default(now())
+  
+  // Entrada
+  pesoVivoTotal   Float       @default(0)
+  cantidadCabezas Int         @default(0)
+  
+  // Salida
+  pesoFrioTotal   Float       @default(0)
+  cantidadMedias  Int         @default(0)
+  
+  // Rendimiento
+  rindePromedio   Float?
+  rindeMinimo     Float?
+  rindeMaximo     Float?
+  
+  // Menudencias
+  pesoMenudencias Float?
+  
+  // Pérdidas
+  pesoMerma       Float?
+  porcentajeMerma Float?
+  
+  // Centro de costo
+  centroCostoId   String?
+  centroCosto     CentroCosto? @relation(fields: [centroCostoId], references: [id])
+  
+  observaciones   String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([fecha])
+  @@index([tropaId])
+}
+
+model RendimientoHistorico {
+  id              String    @id @default(cuid())
+  
+  // Período
+  anio            Int
+  mes             Int
+  
+  // Especie
+  especie         Especie
+  
+  // Tipo animal
+  tipoAnimal      TipoAnimal
+  
+  // Estadísticas
+  cantidadAnimales  Int     @default(0)
+  pesoVivoPromedio  Float?
+  pesoFrioPromedio  Float?
+  rindePromedio     Float?
+  rindeMinimo       Float?
+  rindeMaximo       Float?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([anio, mes, especie, tipoAnimal])
+  @@index([especie])
+}
+
+model BalanceInsumos {
+  id              String    @id @default(cuid())
+  
+  // Período
+  fechaDesde      DateTime
+  fechaHasta      DateTime
+  
+  // Centro de costo
+  centroCostoId   String?
+  centroCosto     CentroCosto? @relation(fields: [centroCostoId], references: [id])
+  
+  // Consumo total
+  consumoTotal    Float     @default(0)
+  
+  // Producción
+  kgProducidos    Float     @default(0)
+  cabezasFaenadas Int       @default(0)
+  
+  // Indicadores
+  costoPorKg      Float?
+  costoPorCabeza  Float?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([fechaDesde])
+}
+
+model Indicador {
+  id              String    @id @default(cuid())
+  codigo          String    @unique
+  nombre          String
+  descripcion     String?
+  
+  // Unidad
+  unidad          String    // %, KG, $
+  
+  // Meta
+  meta            Float?
+  alertaMinima    Float?
+  alertaMaxima    Float?
+  
+  // Categoría
+  categoria       String    // RENDIMIENTO, COSTO, PRODUCCION, FINANCIERO
+  
+  activo          Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  valores         ValorIndicador[]
+}
+
+model ValorIndicador {
+  id              String      @id @default(cuid())
+  indicadorId     String
+  indicador       Indicador   @relation(fields: [indicadorId], references: [id])
+  
+  // Período
+  fecha           DateTime
+  
+  // Valor
+  valor           Float
+  valorMeta       Float?
+  desviacion      Float?
+  
+  observaciones   String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@unique([indicadorId, fecha])
+  @@index([indicadorId])
+  @@index([fecha])
+}
+
+// ==================== NOTAS DE CRÉDITO Y DÉBITO ====================
+
+model NotaCredito {
+  id              String            @id @default(cuid())
+  numero          String            @unique
+  numeroInterno   Int
+  
+  // Cliente
+  clienteId       String
+  cliente         Usuario           @relation(fields: [clienteId], references: [id])
+  
+  // Factura asociada
+  facturaId       String?
+  
+  // Fechas
+  fecha           DateTime          @default(now())
+  
+  // Montos
+  subtotal        Float             @default(0)
+  iva             Float             @default(0)
+  total           Float             @default(0)
+  
+  // Motivo
+  motivo          String
+  observaciones   String?
+  
+  // Estado
+  estado          EstadoNota        @default(EMITIDA)
+  
+  operadorId      String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  detalles        DetalleNotaCredito[]
+  
+  @@index([clienteId])
+  @@index([fecha])
+}
+
+model DetalleNotaCredito {
+  id              String        @id @default(cuid())
+  notaCreditoId   String
+  notaCredito     NotaCredito   @relation(fields: [notaCreditoId], references: [id], onDelete: Cascade)
+  
+  descripcion     String
+  cantidad        Float         @default(1)
+  precioUnitario  Float         @default(0)
+  subtotal        Float         @default(0)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([notaCreditoId])
+}
+
+model NotaDebito {
+  id              String          @id @default(cuid())
+  numero          String          @unique
+  numeroInterno   Int
+  
+  // Cliente
+  clienteId       String
+  cliente         Usuario         @relation(fields: [clienteId], references: [id])
+  
+  // Factura asociada
+  facturaId       String?
+  
+  // Fechas
+  fecha           DateTime        @default(now())
+  
+  // Montos
+  subtotal        Float           @default(0)
+  iva             Float           @default(0)
+  total           Float           @default(0)
+  
+  // Motivo
+  motivo          String
+  observaciones   String?
+  
+  // Estado
+  estado          EstadoNota      @default(EMITIDA)
+  
+  operadorId      String?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  detalles        DetalleNotaDebito[]
+  
+  @@index([clienteId])
+  @@index([fecha])
+}
+
+model DetalleNotaDebito {
+  id              String        @id @default(cuid())
+  notaDebitoId    String
+  notaDebito      NotaDebito    @relation(fields: [notaDebitoId], references: [id], onDelete: Cascade)
+  
+  descripcion     String
+  cantidad        Float         @default(1)
+  precioUnitario  Float         @default(0)
+  subtotal        Float         @default(0)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([notaDebitoId])
+}
+
+enum EstadoNota {
+  EMITIDA
+  APLICADA
+  ANULADA
+}
+
+// ==================== INVENTARIOS ====================
+
+model Inventario {
+  id              String            @id @default(cuid())
+  numero          Int               @unique
+  
+  // Depósito
+  depositoId      String
+  deposito        Deposito          @relation(fields: [depositoId], references: [id])
+  
+  // Fechas
+  fechaInicio     DateTime          @default(now())
+  fechaFin        DateTime?
+  
+  // Estado
+  estado          EstadoInventario  @default(PENDIENTE)
+  
+  // Resultados
+  itemsTotal      Int               @default(0)
+  itemsConDiferencia Int            @default(0)
+  valorDiferencia Float?
+  
+  observaciones   String?
+  
+  operadorId      String?
+  supervisorId    String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  detalles        DetalleInventario[]
+  
+  @@index([depositoId])
+  @@index([estado])
+}
+
+model DetalleInventario {
+  id              String      @id @default(cuid())
+  inventarioId    String
+  inventario      Inventario  @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+  
+  // Insumo
+  insumoId        String
+  insumo          Insumo      @relation(fields: [insumoId], references: [id])
+  
+  // Cantidades
+  cantidadSistema Float       // Lo que dice el sistema
+  cantidadFisica  Float       // Lo que se contó
+  diferencia      Float       // Diferencia
+  
+  // Costo
+  costoUnitario   Float?
+  costoDiferencia Float?
+  
+  // Estado
+  estado          String      @default("PENDIENTE") // PENDIENTE, AJUSTADO
+  
+  observaciones   String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@unique([inventarioId, insumoId])
+  @@index([inventarioId])
+}
+
+enum EstadoInventario {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADO
+  AJUSTADO
 }

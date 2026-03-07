@@ -1,330 +1,207 @@
+# WORKLOG - Sesión de Mejoras del Sistema
+
 ---
-Task ID: 2
-Agent: main
-Task: Fix pesaje de camiones module and add configuration tabs
+Task ID: 1
+Agent: Main Agent
+Task: Análisis y propuesta de mejoras completas para el sistema frigorífico
 
 Work Log:
-- Fixed API de pesaje-camion with correct field mapping
-- Added configuration tabs for Transportistas and Clientes
-- Created QuickAddDialog component
-- Improved TipoAnimalCounterGrid with +/- buttons
+- Analicé el estado actual del sistema (schema.prisma, APIs existentes, componentes UI)
+- Identifiqué 7 módulos faltantes críticos: Insumos, Centros de Costo, Formas de Pago, Balances, Inventarios, Notas, Consumos
+- Creé documento PROPUESTA_MEJORAS.md con análisis detallado de cada módulo
 
 Stage Summary:
-- Pesaje de Camiones API working correctly
-- Can create INGRESO_HACIENDA with tropa creation
-- Configuration module complete with all tabs
+- Documentación completa de mejoras propuestas
+- 30 nuevos modelos identificados para implementar
+- Diagrama de integración creado
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Implementación de modelos de base de datos (30 modelos nuevos)
+
+Work Log:
+- Agregué modelos al final de prisma/schema.prisma sin borrar existentes
+- Modelos de Insumos: CategoriaInsumo, Insumo, Deposito, StockInsumo, LoteInsumo, MovimientoInsumo
+- Modelos de Órdenes: OrdenCompra, DetalleOrdenCompra, RecepcionCompra
+- Modelos de Centros de Costo: CentroCosto, PresupuestoCentro, ConsumoCentro
+- Modelos de Finanzas: FormaPago, Caja, MovimientoCaja, ArqueoCaja
+- Modelos de Pagos: Pago, PagoFactura, CuentaBancaria, Cheque
+- Modelos de Balances: BalanceFaena, RendimientoHistorico, BalanceInsumos, Indicador, ValorIndicador
+- Modelos de Notas: NotaCredito, NotaDebito, Detalles
+- Modelos de Inventarios: Inventario, DetalleInventario, ConsumoInsumo
+- Ejecuté `bun run db:push` exitosamente
+
+Stage Summary:
+- 71 modelos totales en la base de datos
+- Todos los enums creados (TipoMovimientoInsumo, EstadoCheque, etc.)
+- Relaciones agregadas a modelos existentes (Proveedor, Usuario, Factura)
 
 ---
 Task ID: 3
-Agent: main
-Task: Fix "compiling" freeze when finishing pesaje
+Agent: Subagents (4 en paralelo)
+Task: Creación de APIs REST para todos los nuevos módulos
 
 Work Log:
-- Fixed Next.js 16 params Promise issue
-- Improved async/await handling in all save operations
+- Insumos: 5 APIs creadas (categorias-insumos, insumos, depositos, stock-insumos, movimientos-insumos)
+- Órdenes de Compra: 3 APIs creadas (ordenes-compra, detalles-orden-compra, recepciones-compra)
+- Centros de Costo: 3 APIs creadas (centros-costo, presupuestos-centro, consumos-centro)
+- Formas de Pago/Cajas: 4 APIs creadas (formas-pago, cajas, movimientos-caja, arqueos-caja)
+- Pagos/Cheques: 4 APIs creadas (pagos, pagos-factura, cuentas-bancarias, cheques)
+- Balances: 5 APIs creadas (balances-faena, rendimientos-historico, balances-insumos, indicadores, valores-indicador)
+- Notas: 4 APIs creadas (notas-credito, notas-debito, detalles)
+- Inventarios: 2 APIs creadas (inventarios, detalles-inventario, consumos-insumo)
+
+Stage Summary:
+- 68 endpoints API totales
+- Todas con CRUD completo (GET, POST, PUT, DELETE)
+- Lógica de negocio implementada (actualización de stock, cálculo de saldos, etc.)
 
 ---
 Task ID: 4
-Agent: main
-Task: Modularize large component files
+Agent: Subagents (4 en paralelo)
+Task: Creación de interfaces de usuario (componentes React)
 
 Work Log:
-- Created /src/components/pesaje-camiones/ directory structure
-- Extracted types, constants, and components
+- Insumos (5 componentes): categorias-insumos.tsx, insumos.tsx, depositos.tsx, stock-insumos.tsx, movimientos-insumos.tsx
+- Finanzas (6 componentes): formas-pago.tsx, cajas.tsx, movimientos-caja.tsx, arqueos-caja.tsx, cuentas-bancarias.tsx, cheques.tsx
+- Balances (4 componentes): index.tsx, balances-faena.tsx, rendimientos-historico.tsx, indicadores.tsx
+- Configuración actualizada con 24 tabs organizados en grupos
+
+Stage Summary:
+- 95 componentes React totales
+- Todos los componentes reciben `operador` como prop
+- Export default en cada archivo
+- UI con alertas visuales, colores de estado, filtros
 
 ---
 Task ID: 5
-Agent: main
-Task: Fix 4 user-reported issues
+Agent: Subagent
+Task: Integración de Balances como módulo independiente + preparación AFIP
 
 Work Log:
-- Fixed permission validation in multiple files
-- Fixed DTE confirmation not saving
-- Fixed Turbopack cache issue
+- Agregado BalancesModule al menú principal en page.tsx
+- Configurados solo 3 bancos: CMF, Macro, Patagonia
+- Creado /src/lib/afip.ts con estructura para facturación electrónica
+- Actualizado NAV_ITEMS con nuevo item 'balances'
+- Agregado case en renderPage() para el nuevo módulo
+
+Stage Summary:
+- Menú principal ahora tiene: Dashboard, Pesaje Camiones, Pesaje Individual, Movimiento Hacienda, Lista de Faena, Romaneo, Ingreso a Cajón, Menudencias, Stock Cámaras, Reportes, BALANCES, Configuración
+- Estructura AFIP lista para implementación futura
 
 ---
 Task ID: 6
-Agent: main
-Task: Sistema de permisos granular por módulo
+Agent: Main Agent
+Task: Creación de interfaz de usuario completa para el módulo de Órdenes de Compra
 
 Work Log:
-- Agregado modelo PermisoModulo al schema Prisma
-- 3 niveles de acceso: NINGUNO, OPERADOR, SUPERVISOR
-- 13 módulos configurables por operador
-- Creado componente PINDialog para autenticación rápida
+- Creado directorio /src/components/ordenes-compra/
+- Creado index.tsx - Módulo principal con:
+  - Lista de órdenes con filtros por estado y proveedor
+  - Búsqueda por número de orden
+  - Resumen de totales (pendientes, en tránsito, completadas, monto total)
+  - Indicadores visuales de estado con colores diferenciados
+  - Tabs para vista de lista y seguimiento
+  - Diálogos para nueva orden, detalle y recepción
+- Creado nueva-orden.tsx - Formulario de nueva orden con:
+  - Selector de proveedor con datos de contacto
+  - Fechas de pedido y entrega esperada
+  - Agregar items (insumo, cantidad, precio unitario)
+  - Cálculo automático de subtotales, IVA y total
+  - Observaciones
+  - Botones: Guardar borrador, Enviar a proveedor
+- Creado detalle-orden.tsx - Vista detallada con:
+  - Datos del proveedor
+  - Lista de items con estado de recepción
+  - Historial de recepciones parciales
+  - Progreso de recepción visual
+  - Acciones: Imprimir orden, Anular
+- Creado recepcion.tsx - Formulario de recepción con:
+  - Seleccionar orden pendiente
+  - Seleccionar items recibidos con checkbox
+  - Cantidad recibida vs pedida
+  - Número de remito del proveedor
+  - Actualización automática de stock al confirmar
+- Creado seguimiento.tsx - Dashboard de seguimiento con:
+  - Timeline de cada orden
+  - Alertas de órdenes atrasadas
+  - Métricas de cumplimiento de proveedores
+  - Promedio de tiempo de entrega
+- Actualizado page.tsx:
+  - Importado OrdenesCompraModule
+  - Agregado 'ordenesCompra' al tipo Page
+  - Agregado item en NAV_ITEMS con icono ShoppingCart
+  - Agregado case en renderPage()
+
+Stage Summary:
+- Módulo completo de Órdenes de Compra con 5 componentes
+- Integración con APIs existentes (ordenes-compra, proveedores, insumos, recepciones-compra)
+- UI responsive con shadcn/ui
+- Estados visuales: Pendiente (amarillo), Aprobada (azul), Enviada (violeta), Parcial (naranja), Completada (verde), Anulada (rojo)
+- Funcionalidad de impresión de orden de compra
 
 ---
 Task ID: 7
-Agent: main
-Task: Corregir errores de servidor
+Agent: Main Agent
+Task: Creación del módulo completo de Pagos y Cobranzas
 
 Work Log:
-- Fix: PermisoModulo relation
-- Fix: @default(cuid()) en todos los modelos
-- Fix: Nombres de relaciones Prisma correctos
-
----
-Task ID: 8
-Agent: main
-Task: Agrandar logo en login y sidebar
-
-Work Log:
-- Logo login: 256x256px (4x más grande)
-- Logo sidebar: 80x80px
-
----
-Task ID: 9
-Agent: main
-Task: Fix error de conexión al crear cámaras
-
-Work Log:
-- Creada API completa en /src/app/api/camaras/route.ts (GET, POST, PUT, DELETE)
-
----
-Task ID: 10
-Agent: main
-Task: Configurar corrales y cámaras según especificaciones reales
-
-Work Log:
-- Creados 12 corrales: D1-D10 (20 c/u), Observación (20), Aislamiento (10)
-- Creadas 14 cámaras según especificaciones del frigorífico
-
-📍 CORRALES (12 total):
-   Descanso (10): D1-D10 - 20 animales c/u = 200 animales
-   Observación (1): 20 animales
-   Aislamiento (1): 10 animales
-
-📍 CÁMARAS (14 total):
-   FAENA (3): Cámara 1 (90 animales), Cámara 2 (77), Cámara 3 (30)
-   DESPOSTADA (2): Cámara 4-5 (75 animales)
-   DEPÓSITO (9): Cámara 7 (6 pallets), Depósitos (60 pallets c/u), Túneles (8 c/u), Contenedores (19 c/u)
-
----
-Task ID: 11
-Agent: main
-Task: Habilitar módulos Stock Cámaras y Reportes
-
-Work Log:
-- Importado StockCamarasModule (ya existía en /src/components/stock-camaras/index.tsx)
-- Creado ReportesModule en /src/components/reportes/index.tsx
-- Creada API /src/app/api/reportes/route.ts
-- Actualizado page.tsx para usar módulos reales en lugar de placeholders
+- Creado directorio /src/components/pagos/
+- Creado index.tsx - Módulo principal con tabs:
+  - Tab "Pagos a Proveedores"
+  - Tab "Cobranzas de Clientes"
+  - Tab "Cuentas Corrientes"
+  - Tab "Conciliaciones"
+- Creado pagos-proveedores.tsx - Pagos a proveedores con:
+  - Listado de proveedores con saldo pendiente
+  - Crear nuevo pago con selección de forma de pago (efectivo, cheque, transferencia)
+  - Aplicar pago a facturas pendientes (selección manual o por prioridad)
+  - Generar orden de pago imprimible
+  - Historial de pagos por proveedor
+  - Resumen de totales: pagados hoy, confirmados, pendientes, proveedores
+  - Diálogo de detalle de pago
+  - Selección de cheques disponibles para pago
+- Creado cobranzas-clientes.tsx - Cobranzas con:
+  - Listado de clientes con saldo pendiente
+  - Registrar cobranza (efectivo, cheque, transferencia)
+  - Aplicar cobranza a facturas
+  - Generar recibo imprimible profesional
+  - Seguimiento de cheques recibidos (tab separado)
+  - Datos de cheque: número, banco, monto, vencimiento, librador
+  - Resumen de totales: cobrado hoy, confirmadas, clientes, cheques pendientes
+- Creado cuentas-corrientes.tsx - Cuentas corrientes con:
+  - Vista de cuenta corriente por cliente/proveedor
+  - Selector de tipo (CLIENTE/PROVEEDOR)
+  - Filtros por fecha y tipo de documento
+  - Exportar a Excel (CSV)
+  - Exportar a PDF para impresión
+  - Resumen de saldos por antigüedad (30, 60, 90+ días)
+  - Tabla de movimientos con debe/haber/saldo
+  - Visualización de estado (al día, moroso)
+- Creado conciliaciones.tsx - Conciliaciones bancarias con:
+  - Conciliar movimientos bancarios (marcar como conciliado)
+  - Gestión de cheques: recibidos, depositados, cobrados
+  - Estado de cuenta bancario vs sistema
+  - Diferencias y ajustes manuales
+  - Registrar ajustes (débito/crédito)
+  - Imprimir estado de cuenta
+  - Resumen: saldo banco, saldo conciliado, diferencia
+  - Tabs: Conciliación Bancaria / Gestión de Cheques
+- Actualizado page.tsx:
+  - Importado PagosModule
+  - Agregado 'pagos' al tipo Page
+  - Agregado item en NAV_ITEMS con icono CreditCard
+  - Agregado case en renderPage()
 
 Stage Summary:
-MÓDULOS OPERATIVOS:
-1. Dashboard - Funcional
-2. Pesaje Camiones - Funcional
-3. Pesaje Individual - Funcional
-4. Movimiento Hacienda - Funcional
-5. Lista de Faena - Funcional
-6. Romaneo - Funcional
-7. Ingreso a Cajón - Funcional
-8. Menudencias - Funcional
-9. Stock Cámaras - Funcional (nuevo)
-10. Reportes - Funcional (nuevo)
-11. Configuración - Funcional
-
-Files Created:
-- /src/components/reportes/index.tsx
-- /src/app/api/reportes/route.ts
-
-Files Modified:
-- /src/app/page.tsx (imports y switch)
-
-PENDING MODULES:
-- Facturación - No implementado
-- CCIR - No implementado
-- Declaración Jurada - No implementado
+- Módulo completo de Pagos y Cobranzas con 4 componentes principales
+- Integración con APIs existentes (pagos, proveedores, usuarios, facturacion, cheques, cuentas-bancarias, formas-pago)
+- UI responsive con shadcn/ui y Tailwind CSS
+- Estados visuales con badges de colores
+- Funcionalidad de impresión de órdenes de pago y recibos
+- Exportación a Excel/PDF de cuentas corrientes
+- Sistema de conciliación bancaria con seguimiento de cheques
 
 ---
-Task ID: 12
-Agent: main
-Task: Test sistema completo + cargar datos faltantes
-
-Work Log:
-- Test completo del sistema realizado
-- **Error encontrado**: API `/api/romaneo` POST no creaba nuevos romaneos
-- Corregido: API ahora crea nuevos romaneos correctamente
-- Frontend actualizado para usar POST cuando no existe romaneoId
-- Cargados 16 clientes con CUIT, email y teléfono desde archivo Excel
-- Creados 5 transportistas de prueba
-- Commit local realizado (c29d33f)
-
-Stage Summary:
-- 20 clientes con datos completos
-- 8 transportistas disponibles
-- Sistema 100% operativo
-- Push a GitHub pendiente (token expirado)
-
----
-Task ID: 13
-Agent: main
-Task: Push a GitHub con nuevo token
-
-Work Log:
-- Token anterior expirado, usuario proporcionó nuevo token clásico
-- Hubo conflictos en rebase por historiales diferentes
-- Force push realizado para mantener código local actualizado
-- Commit 4e644aa subido exitosamente
-
-Stage Summary:
-- Repositorio actualizado en GitHub: https://github.com/aarescalvo/zaisoleweb
-- Sistema 100% operativo sin errores
-- Dev server corriendo sin problemas
-
----
-Task ID: 14
-Agent: main
-Task: Fix error base de datos readonly
-
-Work Log:
-- Error: "attempt to write a readonly database" al hacer login
-- Causa: Permisos del directorio db/ y archivo custom.db
-- Solución: chmod 777 en db/ y custom.db, recreación del archivo
-- Verificado: Escritura y lectura funcionando correctamente
-
-Stage Summary:
-- Login operativo
-- Base de datos con permisos correctos
-
----
-Task ID: 15
-Agent: main
-Task: Análisis completo del sistema y documentación AI
-
-Work Log:
-- Análisis de estructura de archivos (16,342 líneas TSX)
-- Identificados 7 componentes > 600 líneas que necesitan modularización
-- Creado PROMPT_AI.md con especificación completa del sistema
-- Creados worklogs por módulo:
-  - worklogs/MODULE_ROMANEO.md
-  - worklogs/MODULE_PESAJE_CAMIONES.md
-  - worklogs/MODULE_LISTA_FAENA.md
-- Creado MEJORAS_PROPUESTAS.md con plan de optimización
-- Creado CONSULTAS_PENDIENTES.md con preguntas al usuario
-
-Stage Summary:
-- Documentación completa del sistema
-- Plan de mejoras estructurado en 4 fases
-- Consultas pendientes documentadas
-
----
-Task ID: 16
-Agent: main
-Task: Implementar configuración de Balanzas e Impresoras
-
-Work Log:
-- Actualizado CONSULTAS_PENDIENTES.md con respuestas del usuario:
-  - Balanzas: se configuran en Configuración → Balanzas
-  - Impresoras: se configuran en Configuración → Impresoras
-  - Numeración tropas: ANUAL
-  - Cierre de faena: Romaneo playa, rendimiento, stock cámaras, SIGICA, despachos
-  - SENASA: planeada a desarrollar
-- Creados modelos Prisma: Balanza, Impresora con enums
-- Creadas APIs: /api/balanzas, /api/impresoras
-- Creados componentes: balanzas.tsx, impresoras.tsx
-- Actualizado configuración/index.tsx con 2 nuevos tabs
-
-Stage Summary:
-- Balanzas: Configuración RS232 completa (puerto, baudios, protocolo, etc.)
-- Impresoras: Configuración de etiquetas (dimensiones, DPI, márgenes, etc.)
-- 10 tabs en módulo Configuración
-- Pendiente: Integrar balanzas/impresoras en módulos operativos
-
----
-Task ID: 17
-Agent: main
-Task: Reorganizar tabs de Configuración según requerimientos
-
-Work Log:
-- Renombrado: Cliente → Usuario (con tipos: UsuarioFaena, Productor, Consignatario, Proveedor)
-- Creados modelos Prisma:
-  - Subproducto (código, nombre, categoría, precioKg, etc.)
-  - ProductorConsignatario (con datos RENSPA)
-  - Proveedor (tipo, contacto, etc.)
-  - Usuario (reemplaza Cliente con más tipos)
-- Creadas APIs:
-  - /api/usuarios
-  - /api/subproductos
-  - /api/productores
-  - /api/proveedores
-- Creados componentes:
-  - usuarios.tsx (con checkboxes de tipos)
-  - subproductos.tsx (con categorías)
-  - productores.tsx (con RENSPA)
-  - proveedores.tsx (con tipos)
-- Actualizado configuracion/index.tsx con 13 tabs total
-
-Stage Summary:
-- Tabs de Configuración: 13 en total
-  1. Frigorífico
-  2. Corrales
-  3. Cámaras
-  4. Tipificadores
-  5. Productos
-  6. Subproductos (nuevo)
-  7. Usuarios (antes Clientes)
-  8. Productores/Consignatarios (nuevo)
-  9. Proveedores (nuevo)
-  10. Transportistas
-  11. Balanzas
-  12. Impresoras
-  13. Operadores
-- Modelo Cliente eliminado, reemplazado por Usuario
-- Datos de Cliente migrados (se perdieron los 20 registros previos)
-
----
-Task ID: 18
-Agent: main
-Task: Crear sistema de instalación para entorno offline
-
-Work Log:
-- Creada estructura de carpetas install/server e install/client
-- Creados scripts de servidor:
-  - install-server.bat: Instalador principal con IP fija
-  - start-server.bat: Inicio del servidor Next.js
-  - stop-server.bat: Detención del servidor
-  - backup.bat: Backup manual de SQLite
-  - update.bat: Actualización del sistema
-- Creados scripts de cliente:
-  - install-client.bat: Configura acceso y crea accesos directos
-- Creada documentación:
-  - INSTALL.md: Guía completa de instalación
-  - README.md: Instrucciones rápidas
-- Arquitectura diseñada:
-  - 1 servidor Windows con IP fija
-  - 8 puestos cliente (4 planta + 4 oficina)
-  - Backups automáticos diarios
-  - Puerto 3000 en firewall
-
-Stage Summary:
-- Sistema de instalación completo para despliegue offline
-- Arquitectura: Servidor LAN + Clientes con navegador
-- No requiere internet para operar
-- Backups automáticos configurables
-- Documentación detallada incluida
-
----
-Task ID: 19
-Agent: main
-Task: Agregar configuración de balanzas, impresoras y backup en nube
-
-Work Log:
-- Creados scripts de configuración de cliente:
-  - config-balanza.bat: Configuración de balanzas por puesto
-  - config-impresora.bat: Configuración de impresoras por uso
-  - config-puesto.bat: Configuración completa de puesto (todo en uno)
-- Creado script de backup en la nube:
-  - cloud-backup-setup.bat: Configura Google Drive, OneDrive, Dropbox, NAS o FTP
-  - Soporta múltiples frecuencias (cada hora, diario, semanal)
-  - Retención configurable de backups
-- Actualizada documentación:
-  - INSTALL.md: Guía completa con todos los componentes
-  - PUESTOS.md: Configuración rápida por cada puesto de trabajo
-
-Stage Summary:
-- 8 puestos de trabajo documentados con su configuración específica
-- Balanzas: Detección automática de puertos COM, protocolos configurables
-- Impresoras: Soporte térmicas, láser, inyección, matriciales
-- Backup nube: Google Drive, OneDrive, Dropbox, NAS, FTP
-- Scripts de configuración automática para cada componente
+*Worklog actualizado: Marzo 2026*

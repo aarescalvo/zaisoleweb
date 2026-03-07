@@ -1,179 +1,322 @@
 @echo off
 chcp 65001 >nul
-title SOLEMAR ALIMENTARIA - Configuración de Impresoras
+setlocal enabledelayedexpansion
+title 🖨️ Configurador de Impresora - Solemar Alimentaria
+
+:: ============================================
+:: CONFIGURADOR DE IMPRESORA POR PUESTO
+:: Solemar Alimentaria S.A.
+:: ============================================
+
 color 0B
+cls
 
 echo.
-echo ╔════════════════════════════════════════════════════════════════╗
-echo ║        SOLEMAR ALIMENTARIA - CONFIGURACIÓN DE IMPRESORAS       ║
-echo ╚════════════════════════════════════════════════════════════════╝
+echo  ╔══════════════════════════════════════════════════════════════╗
+echo  ║     🖨️ CONFIGURADOR DE IMPRESORA POR PUESTO                 ║
+echo  ║              Solemar Alimentaria S.A.                        ║
+echo  ╚══════════════════════════════════════════════════════════════╝
 echo.
 
-set "CONFIG_DIR=C:\SolemarAlimentaria"
-set "CONFIG_FILE=%CONFIG_DIR%\impresoras.json"
-
-:: Crear directorio si no existe
-if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
-
-echo Este asistente configurará las impresoras para este puesto.
-echo.
-echo ════════════════════════════════════════════════════════════════
-echo   PUESTOS CON IMPRESORAS
-echo ════════════════════════════════════════════════════════════════
-echo.
-echo   1. Balanza de Camiones    → Tickets de pesaje
-echo   2. Romaneo / Playa        → Rótulos de medias res
-echo   3. Oficina (Facturación)  → Facturas y remitos
-echo   4. Oficina (Reportes)     → Reportes generales
-echo.
-set /p PUESTO="Seleccione el número de puesto: "
-
-:: Mapear puesto a uso
-if "%PUESTO%"=="1" set "USO=TICKETS" & set "PUESTO_NOMBRE=Balanza de Camiones" & set "TIPO_DEF=TERMICA_TICKET"
-if "%PUESTO%"=="2" set "USO=ROTULOS" & set "PUESTO_NOMBRE=Romaneo / Playa" & set "TIPO_DEF=TERMICA"
-if "%PUESTO%"=="3" set "USO=FACTURAS" & set "PUESTO_NOMBRE=Oficina Facturación" & set "TIPO_DEF=LASER"
-if "%PUESTO%"=="4" set "USO=REPORTES" & set "PUESTO_NOMBRE=Oficina Reportes" & set "TIPO_DEF=LASER"
-
-if "%USO%"=="" (
-    echo [ERROR] Opción inválida
+:: Verificar permisos de administrador
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo  ⚠️  Este script requiere permisos de administrador.
+    echo  Por favor, haga clic derecho y "Ejecutar como administrador".
     pause
     exit /b 1
 )
 
-echo.
-echo [INFO] Configurando impresora para: %PUESTO_NOMBRE%
+:: ============================================
+:: PASO 1: DETECTAR IMPRESORAS INSTALADAS
+:: ============================================
+
+echo  🔍 Detectando impresoras instaladas...
 echo.
 
-:: Listar impresoras disponibles
-echo ════════════════════════════════════════════════════════════════
-echo   IMPRESORAS DISPONIBLES EN WINDOWS
-echo ════════════════════════════════════════════════════════════════
+set /a printer_count=0
+
+:: Usar PowerShell para obtener impresoras de forma más confiable
+powershell -Command "Get-Printer | Select-Object Name, PortName, DriverName | Format-Table -AutoSize" 2>nul
+
 echo.
-wmic printer get name,default
+echo  ════════════════════════════════════════════════════════════════
 echo.
 
-set /p IMPRESORA_NOMBRE="Nombre exacto de la impresora: "
-if "%IMPRESORA_NOMBRE%"=="" (
-    echo [ERROR] Debe ingresar el nombre de la impresora
-    pause
-    exit /b 1
+:: Guardar lista de impresoras en array
+for /f "skip=3 tokens=1" %%p in ('powershell -Command "Get-Printer | Select-Object Name" 2^>nul') do (
+    set /a printer_count+=1
+    set "printer!printer_count!=%%p"
 )
 
-echo.
-echo ════════════════════════════════════════════════════════════════
-echo   TIPO DE IMPRESORA
-echo ════════════════════════════════════════════════════════════════
-echo.
-echo   1. Térmica de Etiquetas   (Zebra, Datamax, Sato...)
-echo   2. Térmica de Tickets     (Epson, Star...)
-echo   3. Inyección de Tinta     (HP, Canon, Epson...)
-echo   4. Láser                  (HP, Brother, Samsung...)
-echo   5. Matricial              (Epson FX/LX...)
-echo.
-set /p TIPO_NUM="Seleccione el tipo (1-5): "
-
-if "%TIPO_NUM%"=="1" set "TIPO=TERMICA"
-if "%TIPO_NUM%"=="2" set "TIPO=TERMICA_TICKET"
-if "%TIPO_NUM%"=="3" set "TIPO=INYECCION"
-if "%TIPO_NUM%"=="4" set "TIPO=LASER"
-if "%TIPO_NUM%"=="5" set "TIPO=MATRICIAL"
-
-if "%TIPO%"=="" set "TIPO=%TIPO_DEF%"
-
-echo.
-echo ════════════════════════════════════════════════════════════════
-echo   CONFIGURACIÓN DE ETIQUETA (para térmicas)
-echo ════════════════════════════════════════════════════════════════
-echo.
-
-set "ANCHO=100"
-set "ALTO=50"
-set "DPI=203"
-set "MARGEN_SUP=2"
-set "MARGEN_IZQ=2"
-set "VELOCIDAD=2"
-set "DENSIDAD=8"
-
-if "%TIPO%"=="TERMICA" (
-    echo Configuración de etiqueta para rótulos:
-    set "ANCHO=100"
-    set "ALTO=50"
-    set /p ANCHO="Ancho de etiqueta en mm [100]: "
-    set /p ALTO="Alto de etiqueta en mm [50]: "
+if %printer_count% equ 0 (
+    echo  ⚠️  No se detectaron impresoras instaladas.
     echo.
-    echo DPI disponibles: 203, 300, 600
-    set /p DPI="DPI de la impresora [203]: "
-    set /p MARGEN_SUP="Margen superior mm [2]: "
-    set /p MARGEN_IZQ="Margen izquierdo mm [2]: "
-    set /p VELOCIDAD="Velocidad pulg/seg [2]: "
-    set /p DENSIDAD="Densidad/oscuridad [8]: "
+    echo  Por favor, instale las impresoras necesarias antes de continuar.
+    echo  Use Panel de Control → Dispositivos e Impresoras → Agregar impresora
+    echo.
+    pause
+    exit /b 1
 )
 
-if "%TIPO%"=="TERMICA_TICKET" (
-    echo Configuración para tickets:
-    set "ANCHO=80"
-    set "ALTO=0"
-    set /p ANCHO="Ancho de ticket en mm [80]: "
+echo  Se detectaron %printer_count% impresoras.
+echo.
+
+:: ============================================
+:: PASO 2: SELECCIONAR PUESTO DE TRABAJO
+:: ============================================
+
+echo  📍 Seleccione el PUESTO DE TRABAJO:
+echo.
+echo  ╔══════════════════════════════════════════════════════════════╗
+echo  ║  [1] Balanza Camiones - Imprime tickets de pesaje           ║
+echo  ║  [2] Romaneo - Imprime rótulos/etiquetas de medias          ║
+echo  ║  [3] Facturación - Imprime facturas y remitos               ║
+echo  ║  [4] Reportes - Imprime reportes oficiales                  ║
+echo  ╚══════════════════════════════════════════════════════════════╝
+echo.
+
+set /p puesto_select="  Ingrese número de puesto [1-4]: "
+
+if "%puesto_select%"=="1" (
+    set "puesto_id=balanza_camiones"
+    set "puesto_nombre=Balanza Camiones"
+    set "tipo_default=TICKET"
+    set "descripcion=Tickets de pesaje de camiones"
+)
+if "%puesto_select%"=="2" (
+    set "puesto_id=romaneo"
+    set "puesto_nombre=Romaneo"
+    set "tipo_default=ETIQUETA"
+    set "descripcion=Rótulos y etiquetas de medias"
+)
+if "%puesto_select%"=="3" (
+    set "puesto_id=facturacion"
+    set "puesto_nombre=Facturación"
+    set "tipo_default=FACTURA"
+    set "descripcion=Facturas y remitos"
+)
+if "%puesto_select%"=="4" (
+    set "puesto_id=reportes"
+    set "puesto_nombre=Reportes"
+    set "tipo_default=REPORTE"
+    set "descripcion=Reportes oficiales"
 )
 
-:: Establecer como impresora por defecto para este uso
-set "POR_DEFECTO=true"
-set /p SET_DEFAULT="¿Establecer como impresora por defecto para este uso? (S/N) [S]: "
-if /i "%SET_DEFAULT%"=="N" set "POR_DEFECTO=false"
+if not defined puesto_nombre (
+    echo  ❌ Opción inválida.
+    pause
+    exit /b 1
+)
+
+echo.
+echo  ✅ Puesto seleccionado: %puesto_nombre% - %descripcion%
+echo.
+
+:: ============================================
+:: PASO 3: SELECCIONAR IMPRESORA
+:: ============================================
+
+echo  🖨️ Seleccione la IMPRESORA para este puesto:
+echo.
+echo  ╔══════════════════════════════════════════════════════════════╗
+echo  ║  #   Nombre de la Impresora                                  ║
+echo  ╠══════════════════════════════════════════════════════════════╣
+
+set /a idx=0
+for /f "skip=3 tokens=1" %%p in ('powershell -Command "Get-Printer | Select-Object Name" 2^>nul') do (
+    set /a idx+=1
+    echo  ║  [!idx!]  %%p
+    set "printer_name!idx!=%%p"
+)
+
+echo  ╚══════════════════════════════════════════════════════════════╝
+echo.
+
+set /p printer_select="  Ingrese número de impresora [1-%idx%]: "
+
+if not defined printer_name%printer_select% (
+    echo  ❌ Selección inválida.
+    pause
+    exit /b 1
+)
+
+set "impresora=!printer_name%printer_select%!"
+echo.
+echo  ✅ Impresora seleccionada: %impresora%
+echo.
+
+:: ============================================
+:: PASO 4: TIPO DE IMPRESORA
+:: ============================================
+
+echo  📋 TIPO DE IMPRESORA:
+echo.
+echo  [1] TÉRMICA ETIQUETAS - Para rótulos (Zebra, Datamax, etc.)
+echo  [2] TÉRMICA TICKETS   - Para tickets de pesaje (Epson TM, etc.)
+echo  [3] LÁSER              - Para facturas y reportes
+echo  [4] INYECCIÓN TINTA    - Para reportes color
+echo  [5] MATRICIAL          - Para formularios continuos
+echo.
+
+set /p tipo_select="  Seleccione tipo [1-5]: "
+
+if "%tipo_select%"=="1" set "tipo_impresion=TERMICA_ETIQUETAS"
+if "%tipo_select%"=="2" set "tipo_impresion=TERMICA_TICKETS"
+if "%tipo_select%"=="3" set "tipo_impresion=LASER"
+if "%tipo_select%"=="4" set "tipo_impresion=INYECCION"
+if "%tipo_select%"=="5" set "tipo_impresion=MATRICIAL"
+
+if not defined tipo_impresion (
+    echo  ❌ Tipo inválido.
+    pause
+    exit /b 1
+)
+
+echo  ✅ Tipo: %tipo_impresion%
+echo.
+
+:: ============================================
+:: PASO 5: CONFIGURACIÓN DE ETIQUETA (si térmica)
+:: ============================================
+
+if "%tipo_impresion%"=="TERMICA_ETIQUETAS" (
+    echo  📏 CONFIGURACIÓN DE ETIQUETA:
+    echo.
+    
+    set /p ancho="  Ancho de etiqueta (mm) [default 100]: "
+    if "%ancho%"=="" set "ancho=100"
+    
+    set /p alto="  Alto de etiqueta (mm) [default 50]: "
+    if "%alto%"=="" set "alto=50"
+    
+    set /p dpi="  Resolución DPI [203/300, default 203]: "
+    if "%dpi%"=="" set "dpi=203"
+    
+    echo.
+    echo  ✅ Etiqueta: %ancho% x %alto% mm @ %dpi% DPI
+    echo.
+)
+
+:: ============================================
+:: PASO 6: ESTABLECER COMO IMPRESORA POR DEFECTO
+:: ============================================
+
+echo  ⭐ ¿Establecer como impresora POR DEFECTO del sistema? [S/N]: 
+set /p set_default="  "
+
+if /i "%set_default%"=="S" (
+    echo.
+    echo  Configurando como impresora por defecto...
+    
+    :: Usar PowerShell para cambiar impresora por defecto
+    powershell -Command "(New-Object -ComObject WScript.Network).SetDefaultPrinter('%impresora%')" 2>nul
+    
+    if !errorlevel! equ 0 (
+        echo  ✅ Impresora establecida como por defecto del sistema.
+    ) else (
+        echo  ⚠️  No se pudo establecer como impresora por defecto.
+    )
+    echo.
+)
+
+:: ============================================
+:: PASO 7: PRUEBA DE IMPRESIÓN
+:: ============================================
+
+echo  🖨️ ¿Desea imprimir una PÁGINA DE PRUEBA? [S/N]: 
+set /p test_print="  "
+
+if /i "%test_print%"=="S" (
+    echo.
+    echo  Enviando página de prueba...
+    
+    :: Crear archivo de prueba
+    set "testfile=%temp%\test_print_solemar.txt"
+    (
+        echo ================================================================
+        echo         PRUEBA DE IMPRESIÓN - SOLEMAR ALIMENTARIA
+        echo ================================================================
+        echo.
+        echo Puesto: %puesto_nombre%
+        echo Impresora: %impresora%
+        echo Tipo: %tipo_impresion%
+        echo Fecha: %date% %time%
+        echo.
+        echo ================================================================
+        echo Si puede leer este mensaje, la impresora está configurada
+        echo correctamente para el sistema.
+        echo ================================================================
+    ) > "%testfile%"
+    
+    :: Imprimir usando notepad
+    notepad /p "%testfile%" >nul 2>&1
+    
+    echo  ✅ Página de prueba enviada.
+    timeout /t 3 >nul
+    del "%testfile%" >nul 2>&1
+)
+
+echo.
+
+:: ============================================
+:: PASO 8: GUARDAR CONFIGURACIÓN
+:: ============================================
+
+echo  💾 Guardando configuración...
+
+:: Crear directorio de configuración si no existe
+if not exist "C:\SolemarAlimentaria\config" mkdir "C:\SolemarAlimentaria\config"
 
 :: Crear archivo de configuración JSON
-echo { > "%CONFIG_FILE%"
-echo   "puesto": "%PUESTO_NOMBRE%", >> "%CONFIG_FILE%"
-echo   "uso": "%USO%", >> "%CONFIG_FILE%"
-echo   "nombreImpresora": "%IMPRESORA_NOMBRE%", >> "%CONFIG_FILE%"
-echo   "tipo": "%TIPO%", >> "%CONFIG_FILE%"
-echo   "anchoEtiqueta": %ANCHO%, >> "%CONFIG_FILE%"
-echo   "altoEtiqueta": %ALTO%, >> "%CONFIG_FILE%"
-echo   "dpi": %DPI%, >> "%CONFIG_FILE%"
-echo   "margenSuperior": %MARGEN_SUP%, >> "%CONFIG_FILE%"
-echo   "margenIzquierdo": %MARGEN_IZQ%, >> "%CONFIG_FILE%"
-echo   "velocidad": %VELOCIDAD%, >> "%CONFIG_FILE%"
-echo   "densidad": %DENSIDAD%, >> "%CONFIG_FILE%"
-echo   "porDefecto": %POR_DEFECTO%, >> "%CONFIG_FILE%"
-echo   "fechaConfiguracion": "%date% %time%" >> "%CONFIG_FILE%"
-echo } >> "%CONFIG_FILE%"
+set "configfile=C:\SolemarAlimentaria\config\impresora_%puesto_id%.json"
 
-echo.
-echo ════════════════════════════════════════════════════════════════
-echo   CONFIGURACIÓN GUARDADA
-echo ════════════════════════════════════════════════════════════════
-echo.
-echo   Puesto:           %PUESTO_NOMBRE%
-echo   Impresora:        %IMPRESORA_NOMBRE%
-echo   Tipo:             %TIPO%
-echo   Uso:              %USO%
-if "%TIPO%"=="TERMICA" (
-    echo   Etiqueta:         %ANCHO% x %ALTO% mm
-    echo   DPI:              %DPI%
-    echo   Margen Sup:       %MARGEN_SUP% mm
-    echo   Margen Izq:       %MARGEN_IZQ% mm
+(
+echo {
+echo   "puesto_id": "%puesto_id%",
+echo   "puesto_nombre": "%puesto_nombre%",
+echo   "impresora": "%impresora%",
+echo   "tipo": "%tipo_impresion%",
+if "%tipo_impresion%"=="TERMICA_ETIQUETAS" (
+echo   "configuracion_etiqueta": {
+echo     "ancho_mm": %ancho%,
+echo     "alto_mm": %alto%,
+echo     "dpi": %dpi%
+echo   },
 )
-echo   Por defecto:      %POR_DEFECTO%
-echo.
-echo   Archivo: %CONFIG_FILE%
+echo   "es_default": %set_default%,
+echo   "fecha_configuracion": "%date% %time%"
+echo }
+) > "%configfile%"
+
+echo  ✅ Configuración guardada: %configfile%
 echo.
 
-:: Preguntar si desea imprimir prueba
-set /p TEST_PRINT="¿Desea imprimir una página de prueba? (S/N): "
-if /i "%TEST_PRINT%"=="S" (
-    echo.
-    echo [INFO] Enviando página de prueba a %IMPRESORA_NOMBRE%...
-    rundll32 printui.dll,PrintUIEntry /k /n "%IMPRESORA_NOMBRE%"
+:: ============================================
+:: RESUMEN FINAL
+:: ============================================
+
+echo.
+echo  ╔══════════════════════════════════════════════════════════════╗
+echo  ║  📋 RESUMEN DE CONFIGURACIÓN                                ║
+echo  ╠══════════════════════════════════════════════════════════════╣
+echo  ║  Puesto:       %-30s ║ "%puesto_nombre%"
+echo  ║  Impresora:    %-30s ║ "%impresora%"
+echo  ║  Tipo:         %-30s ║ "%tipo_impresion%"
+if "%tipo_impresion%"=="TERMICA_ETIQUETAS" (
+echo  ║  Etiqueta:     %-30s ║ "%ancho%x%alto%mm @ %dpi%DPI"
 )
+echo  ║  Por defecto:  %-30s ║ "%set_default%"
+echo  ╚══════════════════════════════════════════════════════════════╝
+echo.
 
+echo  ════════════════════════════════════════════════════════════════
+echo  ✅ CONFIGURACIÓN DE IMPRESORA COMPLETADA
+echo  ════════════════════════════════════════════════════════════════
 echo.
-echo ════════════════════════════════════════════════════════════════
-echo   PRÓXIMOS PASOS
-echo ════════════════════════════════════════════════════════════════
-echo.
-echo 1. Esta configuración se guardó localmente
-echo 2. Al acceder al sistema web, vaya a:
-echo    Configuración → Impresoras
-echo 3. Cree una nueva impresora con estos datos
+echo  📝 Próximos pasos:
+echo  1. En el sistema web, vaya a Configuración → Impresoras
+echo  2. Registre esta impresora con los datos configurados
+echo  3. Asocie la impresora al puesto de trabajo correspondiente
 echo.
 pause

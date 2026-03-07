@@ -141,6 +141,9 @@ install\client\install-client.bat
 
 ## ⚖️ CONFIGURACIÓN DE BALANZAS
 
+### 📖 Instructivo Detallado
+Consulte: `install\INSTRUCTIVO_BALANZAS.md`
+
 ### Ejecutar Configurador
 ```
 install\client\config-balanza.bat
@@ -189,6 +192,9 @@ Configuración → Balanzas → Nueva Balanza
 
 ## 🖨️ CONFIGURACIÓN DE IMPRESORAS
 
+### 📖 Instructivo Detallado
+Consulte: `install\INSTRUCTIVO_IMPRESORAS.md`
+
 ### Ejecutar Configurador
 ```
 install\client\config-impresora.bat
@@ -222,6 +228,9 @@ Configuración → Impresoras → Nueva Impresora
 ---
 
 ## ☁️ BACKUP EN LA NUBE
+
+### 📖 Instructivo Detallado
+Consulte: `install\INSTRUCTIVO_BACKUP_NUBE.md`
 
 ### Servicios Soportados
 

@@ -19,12 +19,17 @@ import { MenudenciasModule } from '@/components/menudencias'
 import { IngresoCajonModule } from '@/components/ingreso-cajon'
 import { StockCamarasModule } from '@/components/stock-camaras'
 import { ReportesModule } from '@/components/reportes'
+import { BalancesModule } from '@/components/balances'
+import { PagosModule } from '@/components/pagos'
+import { DashboardEjecutivo } from '@/components/dashboard-ejecutivo'
+import { ReportesGerenciales } from '@/components/reportes-gerenciales'
+import { OrdenesCompraModule } from '@/components/ordenes-compra'
 
 // Lucide icons
 import { 
   Truck, Beef, Scale, ClipboardList, TrendingUp, Package, Tag, Scissors, 
   Warehouse, FileText, Settings, Calendar, LogOut, Lock, Users,
-  Loader2, Plus, Search, Weight, RefreshCw, BoxSelect
+  Loader2, Plus, Search, Weight, RefreshCw, BoxSelect, BarChart3, ShoppingCart, CreditCard
 } from 'lucide-react'
 
 // Types
@@ -72,7 +77,7 @@ interface Stats {
   enCamara: number
 }
 
-type Page = 'dashboard' | 'pesajeCamiones' | 'movimientoHacienda' | 'pesajeIndividual' | 'listaFaena' | 'romaneo' | 'ingresoCajon' | 'menudencias' | 'stock' | 'reportes' | 'configuracion'
+type Page = 'dashboard' | 'pesajeCamiones' | 'movimientoHacienda' | 'pesajeIndividual' | 'listaFaena' | 'romaneo' | 'ingresoCajon' | 'menudencias' | 'stock' | 'reportes' | 'balances' | 'pagos' | 'ordenesCompra' | 'reportesGerenciales' | 'configuracion'
 
 const NAV_ITEMS = [
   { id: 'dashboard' as Page, label: 'Dashboard', icon: Beef },
@@ -85,6 +90,10 @@ const NAV_ITEMS = [
   { id: 'menudencias' as Page, label: 'Menudencias', icon: Package, permiso: 'puedeMenudencias' },
   { id: 'stock' as Page, label: 'Stock Cámaras', icon: Warehouse, permiso: 'puedeStock' },
   { id: 'reportes' as Page, label: 'Reportes', icon: FileText, permiso: 'puedeReportes' },
+  { id: 'balances' as Page, label: 'Balances', icon: BarChart3, permiso: 'puedeReportes' },
+  { id: 'pagos' as Page, label: 'Pagos y Cobranzas', icon: CreditCard, permiso: 'puedeConfiguracion' },
+  { id: 'reportesGerenciales' as Page, label: 'Reportes Gerenciales', icon: BarChart3, permiso: 'puedeReportes' },
+  { id: 'ordenesCompra' as Page, label: 'Órdenes de Compra', icon: ShoppingCart, permiso: 'puedeConfiguracion' },
   { id: 'configuracion' as Page, label: 'Configuración', icon: Settings, permiso: 'puedeConfiguracion' },
 ]
 
@@ -471,7 +480,7 @@ export default function FrigorificoApp() {
 
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardContent />
+        return <DashboardEjecutivo operador={operador} onNavigate={(page) => setCurrentPage(page as Page)} />
       case 'pesajeCamiones':
         return <PesajeCamionesModule operador={operador} onTropaCreada={fetchTropas} />
       case 'pesajeIndividual':
@@ -490,10 +499,18 @@ export default function FrigorificoApp() {
         return <StockCamarasModule operador={operador} />
       case 'reportes':
         return <ReportesModule operador={operador} />
+      case 'balances':
+        return <BalancesModule operador={operador} />
+      case 'pagos':
+        return <PagosModule operador={operador} />
+      case 'reportesGerenciales':
+        return <ReportesGerenciales operador={operador} />
+      case 'ordenesCompra':
+        return <OrdenesCompraModule operador={operador} />
       case 'configuracion':
         return <ConfiguracionModule operador={operador} />
       default:
-        return <DashboardContent />
+        return <DashboardEjecutivo operador={operador} onNavigate={(page) => setCurrentPage(page as Page)} />
     }
   }
 
