@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Farm, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Leaf, Plus, Pencil, Trash2 } from 'lucide-react'
 
 interface ProductorConsignatario {
   id: string
@@ -169,7 +169,7 @@ export function Productores({ operador }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          <Farm className="w-5 h-5" />
+          <Leaf className="w-5 h-5" />
           Productores / Consignatarios
         </CardTitle>
         <Button onClick={handleNew} size="sm">

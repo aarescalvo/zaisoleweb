@@ -1,7 +1,7 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Warehouse, UserCheck, Package, Users, Truck, Scale, Printer, Farm, Layers, ShoppingBag } from 'lucide-react'
+import { Building2, Warehouse, UserCheck, Package, Users, Truck, Scale, Printer, Leaf, Layers, ShoppingBag } from 'lucide-react'
 import { ConfigFrigorifico } from './config-frigorifico'
 import { Corrales } from './corrales'
 import { Camaras } from './camaras'
@@ -62,7 +62,7 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
               <span className="hidden sm:inline">Usuarios</span>
             </TabsTrigger>
             <TabsTrigger value="productores" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
-              <Farm className="w-4 h-4" />
+              <Leaf className="w-4 h-4" />
               <span className="hidden sm:inline">Productores</span>
             </TabsTrigger>
             <TabsTrigger value="proveedores" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
