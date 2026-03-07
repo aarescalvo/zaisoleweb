@@ -11,7 +11,10 @@ echo ╚════════════════════════
 echo.
 
 :: Solicitar IP del servidor
-set /p SERVER_IP="Ingrese la IP del servidor (ej: 192.168.1.100): "
+echo Ingrese la dirección IP del servidor
+echo (Ejemplo: 192.168.1.100)
+echo.
+set /p SERVER_IP="IP del Servidor: "
 
 if "%SERVER_IP%"=="" (
     echo [ERROR] Debe ingresar la IP del servidor
@@ -44,9 +47,8 @@ echo.
 echo [2/3] Creando accesos directos...
 echo.
 
-:: Obtener el directorio del escritorio público (para todos los usuarios)
-set "DESKTOP=%PUBLIC%\Desktop"
-if not exist "%DESKTOP%" set "DESKTOP=%USERPROFILE%\Desktop"
+:: Obtener el directorio del escritorio
+set "DESKTOP=%USERPROFILE%\Desktop"
 
 :: Crear archivo VBS para generar acceso directo
 echo Set WshShell = WScript.CreateObject("WScript.Shell") > "%TEMP%\shortcut.vbs"
