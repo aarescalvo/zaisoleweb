@@ -272,3 +272,34 @@ Stage Summary:
   13. Operadores
 - Modelo Cliente eliminado, reemplazado por Usuario
 - Datos de Cliente migrados (se perdieron los 20 registros previos)
+
+---
+Task ID: 18
+Agent: main
+Task: Crear sistema de instalación para entorno offline
+
+Work Log:
+- Creada estructura de carpetas install/server e install/client
+- Creados scripts de servidor:
+  - install-server.bat: Instalador principal con IP fija
+  - start-server.bat: Inicio del servidor Next.js
+  - stop-server.bat: Detención del servidor
+  - backup.bat: Backup manual de SQLite
+  - update.bat: Actualización del sistema
+- Creados scripts de cliente:
+  - install-client.bat: Configura acceso y crea accesos directos
+- Creada documentación:
+  - INSTALL.md: Guía completa de instalación
+  - README.md: Instrucciones rápidas
+- Arquitectura diseñada:
+  - 1 servidor Windows con IP fija
+  - 8 puestos cliente (4 planta + 4 oficina)
+  - Backups automáticos diarios
+  - Puerto 3000 en firewall
+
+Stage Summary:
+- Sistema de instalación completo para despliegue offline
+- Arquitectura: Servidor LAN + Clientes con navegador
+- No requiere internet para operar
+- Backups automáticos configurables
+- Documentación detallada incluida
