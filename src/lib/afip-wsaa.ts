@@ -3,7 +3,7 @@
 
 import crypto from 'crypto'
 import { execSync } from 'child_process'
-import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs'
+import { writeFileSync, unlinkSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { db } from '@/lib/db'
@@ -127,7 +127,6 @@ export function firmarTRA(tra: string, certificado: string, clavePrivada: string
     }
     
     // Read the signed CMS
-    const { readFileSync } = require('fs')
     const cmsBuffer = readFileSync(cmsFile)
     const cmsBase64 = cmsBuffer.toString('base64')
     
